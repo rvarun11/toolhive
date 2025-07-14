@@ -10,9 +10,75 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/viper"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
+
+// NewLogger creates a new zap sugared logger instance
+func NewLogger() (*zap.SugaredLogger, error) {
+	config := buildConfig()
+	logger, err := config.Build()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return logger.Sugar(), nil
+
+}
+
+// NewLogr returns a logr.Logger which uses zap logger, name to be updated once NewLogr is removed
+func NewLogr() logr.Logger {
+	sugaredLogger, err := NewLogger()
+	logger := sugaredLogger.Desugar()
+
+	if err != nil {
+		panic(err) // or handle error appropriately
+	}
+
+	return zapr.NewLogger(logger)
+}
+
+// getBaseConfig returns the cached base configuration
+// TODO: Update the config as per the project's requirements
+func buildConfig() zap.Config {
+	var config zap.Config
+	if unstructuredLogs() {
+		config = zap.NewDevelopmentConfig()
+		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		config.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.Kitchen)
+		config.OutputPaths = []string{"stderr"}
+	} else {
+		config = zap.NewProductionConfig()
+		config.OutputPaths = []string{"stdout"}
+	}
+
+	// Set log level based on current debug flag
+	if viper.GetBool("debug") {
+		config.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	} else {
+		config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+	}
+
+	return config
+}
+
+func unstructuredLogs() bool {
+	unstructuredLogs, err := strconv.ParseBool(os.Getenv("UNSTRUCTURED_LOGS"))
+	if err != nil {
+		// at this point if the error is not nil, the env var wasn't set, or is ""
+		// which means we just default to outputting unstructured logs.
+		return true
+	}
+	return unstructuredLogs
+}
+
+// TODO: The following will be deprecated and had to be removed
 
 // Log is a global logger instance
 var log Logger
@@ -130,16 +196,6 @@ func (l *slogLogger) Panic(msg string) {
 	panic(msg)
 }
 
-func unstructuredLogs() bool {
-	unstructuredLogs, err := strconv.ParseBool(os.Getenv("UNSTRUCTURED_LOGS"))
-	if err != nil {
-		// at this point if the error is not nil, the env var wasn't set, or is ""
-		// which means we just default to outputting unstructured logs.
-		return true
-	}
-	return unstructuredLogs
-}
-
 // Initialize creates and configures the appropriate logger.
 // If the UNSTRUCTURED_LOGS is set to true, it will output plain log message
 // with only time and LogLevelType (INFO, DEBUG, ERROR, WARN)).
@@ -169,17 +225,6 @@ func Initialize() {
 		slog.SetDefault(slogger)
 		log = &slogLogger{logger: slogger}
 	}
-}
-
-// GetLogger returns a context-specific logger
-func GetLogger(component string) Logger {
-	if slogger, ok := log.(*slogLogger); ok {
-		return &slogLogger{
-			logger: slogger.logger.With("component", component),
-		}
-	}
-
-	return log
 }
 
 // getLogLevel returns the appropriate slog.Level based on the debug flag
