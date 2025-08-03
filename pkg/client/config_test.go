@@ -102,8 +102,6 @@ func MockConfig(t *testing.T, cfg *config.Config) func() {
 }
 
 func TestFindClientConfigs(t *testing.T) { //nolint:paralleltest // Uses environment variables
-	logger.Initialize()
-
 	// Setup a temporary home directory for testing
 	originalHome := os.Getenv("HOME")
 	tempHome := t.TempDir()
@@ -135,8 +133,7 @@ func TestFindClientConfigs(t *testing.T) { //nolint:paralleltest // Uses environ
 		r, w, _ := os.Pipe()
 		os.Stderr = w
 
-		// Re-initialize logger to use the captured stderr
-		logger.Initialize()
+		logger := logger.NewLogger()
 
 		// Create an invalid JSON file
 		invalidPath := filepath.Join(tempHome, ".cursor", "invalid.json")
@@ -182,7 +179,7 @@ func TestFindClientConfigs(t *testing.T) { //nolint:paralleltest // Uses environ
 
 		// Find client configs - this should NOT fail due to the invalid JSON
 		// Instead, it should log a warning and continue
-		configs, err := FindRegisteredClientConfigs()
+		configs, err := FindRegisteredClientConfigs(logger)
 		assert.NoError(t, err, "FindRegisteredClientConfigs should not return an error for invalid config files")
 
 		// The invalid client should be skipped, so we should get configs for valid clients only
@@ -241,7 +238,8 @@ func TestGenerateMCPServerURL(t *testing.T) {
 }
 
 func TestSuccessfulClientConfigOperations(t *testing.T) {
-	logger.Initialize()
+	// Setup logger
+	logger := logger.NewLogger()
 
 	// Setup a temporary home directory for testing
 	originalHome := os.Getenv("HOME")
@@ -288,7 +286,7 @@ func TestSuccessfulClientConfigOperations(t *testing.T) {
 		cleanup := MockConfig(t, testConfig)
 		defer cleanup()
 
-		configs, err := FindRegisteredClientConfigs()
+		configs, err := FindRegisteredClientConfigs(logger)
 		require.NoError(t, err)
 		assert.Len(t, configs, len(supportedClientIntegrations), "Should find all mock client configs")
 
@@ -305,7 +303,7 @@ func TestSuccessfulClientConfigOperations(t *testing.T) {
 	})
 
 	t.Run("VerifyConfigFileContents", func(t *testing.T) { //nolint:paralleltest // Uses environment variables
-		configs, err := FindRegisteredClientConfigs()
+		configs, err := FindRegisteredClientConfigs(logger)
 		require.NoError(t, err)
 		require.NotEmpty(t, configs)
 
@@ -359,7 +357,7 @@ func TestSuccessfulClientConfigOperations(t *testing.T) {
 	})
 
 	t.Run("AddAndVerifyMCPServer", func(t *testing.T) { //nolint:paralleltest // Uses environment variables
-		configs, err := FindRegisteredClientConfigs()
+		configs, err := FindRegisteredClientConfigs(logger)
 		require.NoError(t, err)
 		require.NotEmpty(t, configs)
 

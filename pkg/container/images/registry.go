@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/logger"
 )
@@ -23,6 +24,7 @@ type RegistryImageManager struct {
 	keychain     authn.Keychain
 	platform     *v1.Platform
 	dockerClient *client.Client
+	logger       *zap.SugaredLogger
 }
 
 // NewRegistryImageManager creates a new RegistryImageManager instance
@@ -31,6 +33,7 @@ func NewRegistryImageManager(dockerClient *client.Client) *RegistryImageManager 
 		keychain:     NewCompositeKeychain(), // Use composite keychain (env vars + default)
 		platform:     getDefaultPlatform(),   // Use a default platform based on host architecture
 		dockerClient: dockerClient,           // Used solely for building images from Dockerfiles
+		logger:       logger.NewLogger(),
 	}
 }
 
@@ -62,7 +65,7 @@ func (r *RegistryImageManager) ImageExists(_ context.Context, imageName string) 
 
 // PullImage pulls an image from a registry and saves it to the local daemon
 func (r *RegistryImageManager) PullImage(ctx context.Context, imageName string) error {
-	logger.Infof("Pulling image: %s", imageName)
+	r.logger.Infof("Pulling image: %s", imageName)
 
 	// Parse the image reference
 	ref, err := name.ParseReference(imageName)
@@ -104,7 +107,7 @@ func (r *RegistryImageManager) PullImage(ctx context.Context, imageName string) 
 
 	// Display success message
 	fmt.Fprintf(os.Stdout, "Successfully pulled %s\n", imageName)
-	logger.Infof("Pull complete for image: %s, response: %s", imageName, response)
+	r.logger.Infof("Pull complete for image: %s, response: %s", imageName, response)
 
 	return nil
 }

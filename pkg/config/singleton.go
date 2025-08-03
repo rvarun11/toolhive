@@ -20,7 +20,7 @@ func GetConfig() *Config {
 		if appConfig == nil {
 			appConfig, err := LoadOrCreateConfig()
 			if err != nil {
-				logger.Errorf("error loading configuration: %v", err)
+				logger.Log.Errorf("error loading configuration: %v", err)
 				os.Exit(1)
 			}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	dockerimage "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/logger"
 )
@@ -21,6 +22,7 @@ import (
 // or compatible runtimes such as Podman.
 type DockerImageManager struct {
 	client *client.Client
+	logger *zap.SugaredLogger
 }
 
 // NewDockerImageManager creates a new DockerImageManager instance
@@ -28,6 +30,7 @@ type DockerImageManager struct {
 func NewDockerImageManager(dockerClient *client.Client) *DockerImageManager {
 	return &DockerImageManager{
 		client: dockerClient,
+		logger: logger.NewLogger(),
 	}
 }
 
@@ -54,7 +57,7 @@ func (d *DockerImageManager) BuildImage(ctx context.Context, contextDir, imageNa
 
 // PullImage pulls an image from a registry
 func (d *DockerImageManager) PullImage(ctx context.Context, imageName string) error {
-	logger.Infof("Pulling image: %s", imageName)
+	d.logger.Infof("Pulling image: %s", imageName)
 
 	// Pull the image
 	reader, err := d.client.ImagePull(ctx, imageName, dockerimage.PullOptions{})
@@ -73,7 +76,7 @@ func (d *DockerImageManager) PullImage(ctx context.Context, imageName string) er
 
 // buildDockerImage builds a Docker image using the Docker client API
 func buildDockerImage(ctx context.Context, dockerClient *client.Client, contextDir, imageName string) error {
-	logger.Infof("Building image %s from context directory %s", imageName, contextDir)
+	logger.Log.Infof("Building image %s from context directory %s", imageName, contextDir)
 
 	// Create a tar archive of the context directory
 	tarFile, err := os.CreateTemp("", "docker-build-context-*.tar")

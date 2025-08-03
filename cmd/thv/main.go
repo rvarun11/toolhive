@@ -11,12 +11,10 @@ import (
 )
 
 func main() {
-	// Initialize the logger
-	logger.Initialize()
-
+	logger := logger.NewLogger()
 	// Check and perform auto-discovery migration if needed
 	// Handles the auto-discovery flag depreciation, only executes once on old config files
-	client.CheckAndPerformAutoDiscoveryMigration()
+	client.CheckAndPerformAutoDiscoveryMigration(logger)
 
 	// Check and perform default group migration if needed
 	// Migrates existing workloads to the default group, only executes once
@@ -24,7 +22,7 @@ func main() {
 	// groups.CheckAndPerformDefaultGroupMigration()
 
 	// Skip update check for completion command or if we are running in kubernetes
-	if err := app.NewRootCmd(!app.IsCompletionCommand(os.Args) && !runtime.IsKubernetesRuntime()).Execute(); err != nil {
+	if err := app.NewRootCmd(!app.IsCompletionCommand(os.Args) && !runtime.IsKubernetesRuntime(), logger).Execute(); err != nil {
 		os.Exit(1)
 	}
 }

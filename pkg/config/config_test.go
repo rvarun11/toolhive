@@ -41,7 +41,6 @@ func SetupTestConfig(t *testing.T, configContent *Config) (string, string) {
 
 func TestLoadOrCreateConfig(t *testing.T) {
 	t.Parallel()
-	logger.Initialize()
 
 	t.Run("TestLoadOrCreateConfigWithMockConfig", func(t *testing.T) {
 		t.Parallel()
@@ -143,7 +142,6 @@ func TestSave(t *testing.T) {
 
 func TestRegistryURLConfig(t *testing.T) {
 	t.Parallel()
-	logger.Initialize()
 
 	t.Run("TestSetAndGetRegistryURL", func(t *testing.T) {
 		t.Parallel()
@@ -256,7 +254,6 @@ func TestRegistryURLConfig(t *testing.T) {
 
 func TestSecrets_GetProviderType_EnvironmentVariable(t *testing.T) {
 	t.Parallel()
-	logger.Initialize()
 
 	// Save original env value and restore at the end
 	originalEnv := os.Getenv(secrets.ProviderEnvVar)

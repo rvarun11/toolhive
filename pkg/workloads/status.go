@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	rt "github.com/stacklok/toolhive/pkg/container/runtime"
 	"github.com/stacklok/toolhive/pkg/core"
 	"github.com/stacklok/toolhive/pkg/labels"
@@ -32,6 +34,7 @@ type StatusManager interface {
 func NewStatusManagerFromRuntime(runtime rt.Runtime) StatusManager {
 	return &runtimeStatusManager{
 		runtime: runtime,
+		logger:  logger.NewLogger(),
 	}
 }
 
@@ -40,11 +43,12 @@ func NewStatusManagerFromRuntime(runtime rt.Runtime) StatusManager {
 // ToolHive at the time of writing.
 type runtimeStatusManager struct {
 	runtime rt.Runtime
+	logger  *zap.SugaredLogger
 }
 
-func (*runtimeStatusManager) CreateWorkloadStatus(_ context.Context, workloadName string) error {
+func (r *runtimeStatusManager) CreateWorkloadStatus(_ context.Context, workloadName string) error {
 	// TODO: This will need to handle concurrent updates.
-	logger.Debugf("workload %s created", workloadName)
+	r.logger.Debugf("workload %s created", workloadName)
 	return nil
 }
 
@@ -94,14 +98,14 @@ func (r *runtimeStatusManager) ListWorkloads(ctx context.Context, listAll bool, 
 	return workloads, nil
 }
 
-func (*runtimeStatusManager) SetWorkloadStatus(
+func (r *runtimeStatusManager) SetWorkloadStatus(
 	_ context.Context,
 	workloadName string,
 	status rt.WorkloadStatus,
 	contextMsg string,
 ) {
 	// TODO: This will need to handle concurrent updates.
-	logger.Debugf("workload %s set to status %s (context: %s)", workloadName, status, contextMsg)
+	r.logger.Debugf("workload %s set to status %s (context: %s)", workloadName, status, contextMsg)
 }
 
 func (*runtimeStatusManager) DeleteWorkloadStatus(_ context.Context, _ string) error {

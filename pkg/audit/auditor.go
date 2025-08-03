@@ -47,7 +47,7 @@ func NewAuditor(config *Config) (*Auditor, error) {
 		w, err := config.GetLogWriter()
 		if err != nil {
 			// Log error and fall back to stdout
-			logger.Errorf("Failed to open audit log file, falling back to stdout: %v", err)
+			logger.Log.Errorf("Failed to open audit log file, falling back to stdout: %v", err)
 			return nil, err
 		}
 		logWriter = w

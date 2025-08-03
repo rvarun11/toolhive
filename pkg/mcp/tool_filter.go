@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/transport/types"
 )
@@ -122,7 +124,7 @@ func NewToolCallFilterMiddleware(filterTools []string) (types.Middleware, error)
 					return
 				}
 				if err != nil {
-					logger.Errorf("Error processing tool call of a filtered tool: %v", err)
+					logger.Log.Errorf("Error processing tool call of a filtered tool: %v", err)
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -138,6 +140,7 @@ type toolFilterWriter struct {
 	http.ResponseWriter
 	buffer      []byte
 	filterTools map[string]struct{}
+	logger      *zap.SugaredLogger
 }
 
 // WriteHeader captures the status code
@@ -159,19 +162,19 @@ func (rw *toolFilterWriter) Flush() {
 		if mimeType == "" {
 			_, err := rw.ResponseWriter.Write(rw.buffer)
 			if err != nil {
-				logger.Errorf("Error writing buffer: %v", err)
+				rw.logger.Errorf("Error writing buffer: %v", err)
 			}
 			return
 		}
 
 		var b bytes.Buffer
 		if err := processBuffer(rw.filterTools, rw.buffer, mimeType, &b); err != nil {
-			logger.Errorf("Error flushing response: %v", err)
+			rw.logger.Errorf("Error flushing response: %v", err)
 		}
 
 		_, err := rw.ResponseWriter.Write(b.Bytes())
 		if err != nil {
-			logger.Errorf("Error writing buffer: %v", err)
+			rw.logger.Errorf("Error writing buffer: %v", err)
 		}
 		rw.buffer = rw.buffer[:0] // Reset buffer
 	}

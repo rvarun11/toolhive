@@ -10,13 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/stacklok/toolhive/pkg/logger"
 )
-
-func init() {
-	logger.Initialize() // ensure logging doesn't panic
-}
 
 func TestStreamingSessionIDDetection(t *testing.T) {
 	t.Parallel()

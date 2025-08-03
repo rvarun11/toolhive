@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/versions"
 )
 
@@ -30,9 +29,6 @@ func (m *mockMCPPinger) Ping(_ context.Context) (time.Duration, error) {
 
 func TestHealthChecker_CheckHealth(t *testing.T) {
 	t.Parallel()
-
-	// Initialize logger for tests
-	logger.Initialize()
 
 	tests := []struct {
 		name              string
@@ -99,9 +95,6 @@ func TestHealthChecker_CheckHealth(t *testing.T) {
 
 func TestHealthChecker_ServeHTTP(t *testing.T) {
 	t.Parallel()
-
-	// Initialize logger for tests
-	logger.Initialize()
 
 	tests := []struct {
 		name           string
@@ -181,9 +174,6 @@ func TestHealthChecker_ServeHTTP(t *testing.T) {
 
 func TestHealthResponse_JSON(t *testing.T) {
 	t.Parallel()
-
-	// Initialize logger for tests
-	logger.Initialize()
 
 	response := &HealthResponse{
 		Status:    StatusHealthy,

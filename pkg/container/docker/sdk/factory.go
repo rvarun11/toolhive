@@ -50,7 +50,7 @@ func NewDockerClient(ctx context.Context) (*client.Client, string, runtime.Type,
 		// Try to find a container socket for the given runtime
 		socketPath, runtimeType, err := findContainerSocket(sp)
 		if err != nil {
-			logger.Debugf("Failed to find socket for %s: %v", sp, err)
+			logger.Log.Debugf("Failed to find socket for %s: %v", sp, err)
 			lastErr = err
 			continue
 		}
@@ -58,11 +58,11 @@ func NewDockerClient(ctx context.Context) (*client.Client, string, runtime.Type,
 		c, err := newClientWithSocketPath(ctx, socketPath)
 		if err != nil {
 			lastErr = err
-			logger.Debugf("Failed to create client for %s: %v", sp, err)
+			logger.Log.Debugf("Failed to create client for %s: %v", sp, err)
 			continue
 		}
 
-		logger.Debugf("Successfully connected to %s runtime", runtimeType)
+		logger.Log.Debugf("Successfully connected to %s runtime", runtimeType)
 		return c, socketPath, runtimeType, nil
 	}
 

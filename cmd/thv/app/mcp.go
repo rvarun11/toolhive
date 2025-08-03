@@ -110,7 +110,7 @@ func mcpListCmdFunc(cmd *cobra.Command, _ []string) error {
 
 	// List tools
 	if tools, err := mcpClient.ListTools(ctx, mcp.ListToolsRequest{}); err != nil {
-		logger.Warnf("Failed to list tools: %v", err)
+		logger.Log.Warnf("Failed to list tools: %v", err)
 		data["tools"] = []mcp.Tool{}
 	} else {
 		data["tools"] = tools.Tools
@@ -118,7 +118,7 @@ func mcpListCmdFunc(cmd *cobra.Command, _ []string) error {
 
 	// List resources
 	if resources, err := mcpClient.ListResources(ctx, mcp.ListResourcesRequest{}); err != nil {
-		logger.Warnf("Failed to list resources: %v", err)
+		logger.Log.Warnf("Failed to list resources: %v", err)
 		data["resources"] = []mcp.Resource{}
 	} else {
 		data["resources"] = resources.Resources
@@ -126,7 +126,7 @@ func mcpListCmdFunc(cmd *cobra.Command, _ []string) error {
 
 	// List prompts
 	if prompts, err := mcpClient.ListPrompts(ctx, mcp.ListPromptsRequest{}); err != nil {
-		logger.Warnf("Failed to list prompts: %v", err)
+		logger.Log.Warnf("Failed to list prompts: %v", err)
 		data["prompts"] = []mcp.Prompt{}
 	} else {
 		data["prompts"] = prompts.Prompts
@@ -246,7 +246,7 @@ func determineTransportType(serverURL, transportFlag string) types.TransportType
 	parsedURL, err := url.Parse(serverURL)
 	if err != nil {
 		// If we can't parse the URL, default to SSE for backward compatibility
-		logger.Warnf("Failed to parse server URL %s, defaulting to SSE transport: %v", serverURL, err)
+		logger.Log.Warnf("Failed to parse server URL %s, defaulting to SSE transport: %v", serverURL, err)
 		return types.TransportTypeSSE
 	}
 

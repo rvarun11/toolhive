@@ -50,14 +50,14 @@ func bundleFromSigstoreSignedImage(imageRef string, keychain authn.Keychain) ([]
 		// Build the verification material for the bundle
 		verificationMaterial, err := getBundleVerificationMaterial(layer)
 		if err != nil {
-			logger.Error("error getting bundle verification material")
+			logger.Log.Error("error getting bundle verification material")
 			continue
 		}
 
 		// Build the message signature for the bundle
 		msgSignature, err := getBundleMsgSignature(layer)
 		if err != nil {
-			logger.Error("error getting bundle message signature")
+			logger.Log.Error("error getting bundle message signature")
 			continue
 		}
 
@@ -69,14 +69,14 @@ func bundleFromSigstoreSignedImage(imageRef string, keychain authn.Keychain) ([]
 		}
 		bun, err := bundle.NewBundle(&pbb)
 		if err != nil {
-			logger.Error("error creating protobuf bundle")
+			logger.Log.Error("error creating protobuf bundle")
 			continue
 		}
 
 		// Collect the digest of the simple signing layer (this is what is signed)
 		digestBytes, err := hex.DecodeString(layer.Digest.Hex)
 		if err != nil {
-			logger.Error("error decoding the simplesigning layer digest")
+			logger.Log.Error("error decoding the simplesigning layer digest")
 			continue
 		}
 

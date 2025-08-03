@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/container/runtime"
 	"github.com/stacklok/toolhive/pkg/core"
@@ -30,6 +31,7 @@ type WorkloadRoutes struct {
 	containerRuntime runtime.Runtime
 	debugMode        bool
 	groupManager     groups.Manager
+	logger           *zap.SugaredLogger
 }
 
 //	@title			ToolHive API
@@ -50,6 +52,7 @@ func WorkloadRouter(
 		containerRuntime: containerRuntime,
 		debugMode:        debugMode,
 		groupManager:     groupManager,
+		logger:           logger.NewLogger(),
 	}
 
 	r := chi.NewRouter()
@@ -85,7 +88,7 @@ func (s *WorkloadRoutes) listWorkloads(w http.ResponseWriter, r *http.Request) {
 
 	workloadList, err := s.workloadManager.ListWorkloads(ctx, listAll)
 	if err != nil {
-		logger.Errorf("Failed to list workloads: %v", err)
+		s.logger.Errorf("Failed to list workloads: %v", err)
 		http.Error(w, "Failed to list workloads", http.StatusInternalServerError)
 		return
 	}
@@ -101,7 +104,7 @@ func (s *WorkloadRoutes) listWorkloads(w http.ResponseWriter, r *http.Request) {
 			if thverrors.IsGroupNotFound(err) {
 				http.Error(w, "Group not found", http.StatusNotFound)
 			} else {
-				logger.Errorf("Failed to filter workloads by group: %v", err)
+				s.logger.Errorf("Failed to filter workloads by group: %v", err)
 				http.Error(w, "Failed to list workloads in group", http.StatusInternalServerError)
 			}
 			return
@@ -139,7 +142,7 @@ func (s *WorkloadRoutes) getWorkload(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid workload name: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		logger.Errorf("Failed to get workload: %v", err)
+		s.logger.Errorf("Failed to get workload: %v", err)
 		http.Error(w, "Failed to get workload", http.StatusInternalServerError)
 		return
 	}
@@ -173,7 +176,7 @@ func (s *WorkloadRoutes) stopWorkload(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid workload name: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		logger.Errorf("Failed to stop workload: %v", err)
+		s.logger.Errorf("Failed to stop workload: %v", err)
 		http.Error(w, "Failed to stop workload", http.StatusInternalServerError)
 		return
 	}
@@ -201,7 +204,7 @@ func (s *WorkloadRoutes) restartWorkload(w http.ResponseWriter, r *http.Request)
 			http.Error(w, "Invalid workload name: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		logger.Errorf("Failed to restart workload: %v", err)
+		s.logger.Errorf("Failed to restart workload: %v", err)
 		http.Error(w, "Failed to restart workload", http.StatusInternalServerError)
 		return
 	}
@@ -229,7 +232,7 @@ func (s *WorkloadRoutes) deleteWorkload(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, "Invalid workload name: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		logger.Errorf("Failed to delete workload: %v", err)
+		s.logger.Errorf("Failed to delete workload: %v", err)
 		http.Error(w, "Failed to delete workload", http.StatusInternalServerError)
 		return
 	}
@@ -299,7 +302,7 @@ func (s *WorkloadRoutes) createWorkload(w http.ResponseWriter, r *http.Request) 
 		WithToolsFilter(req.ToolsFilter).
 		Build(ctx, imageMetadata, req.EnvVars, &runner.DetachedEnvVarValidator{})
 	if err != nil {
-		logger.Errorf("Failed to create run config: %v", err)
+		s.logger.Errorf("Failed to create run config: %v", err)
 		http.Error(w, "Failed to create run config", http.StatusBadRequest)
 		return
 	}
@@ -307,7 +310,7 @@ func (s *WorkloadRoutes) createWorkload(w http.ResponseWriter, r *http.Request) 
 	// Start workload with specified RunConfig.
 	err = s.workloadManager.RunWorkloadDetached(ctx, runConfig)
 	if err != nil {
-		logger.Errorf("Failed to start workload: %v", err)
+		s.logger.Errorf("Failed to start workload: %v", err)
 		http.Error(w, "Failed to start workload", http.StatusInternalServerError)
 		return
 	}
@@ -363,7 +366,7 @@ func (s *WorkloadRoutes) stopWorkloadsBulk(w http.ResponseWriter, r *http.Reques
 			http.Error(w, "Invalid workload name: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		logger.Errorf("Failed to stop workloads: %v", err)
+		s.logger.Errorf("Failed to stop workloads: %v", err)
 		http.Error(w, "Failed to stop workloads", http.StatusInternalServerError)
 		return
 	}
@@ -408,7 +411,7 @@ func (s *WorkloadRoutes) restartWorkloadsBulk(w http.ResponseWriter, r *http.Req
 			http.Error(w, "Invalid workload name: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		logger.Errorf("Failed to restart workloads: %v", err)
+		s.logger.Errorf("Failed to restart workloads: %v", err)
 		http.Error(w, "Failed to restart workloads", http.StatusInternalServerError)
 		return
 	}
@@ -453,7 +456,7 @@ func (s *WorkloadRoutes) deleteWorkloadsBulk(w http.ResponseWriter, r *http.Requ
 			http.Error(w, "Invalid workload name: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		logger.Errorf("Failed to delete workloads: %v", err)
+		s.logger.Errorf("Failed to delete workloads: %v", err)
 		http.Error(w, "Failed to delete workloads", http.StatusInternalServerError)
 		return
 	}
@@ -480,14 +483,14 @@ func (s *WorkloadRoutes) getLogsForWorkload(w http.ResponseWriter, r *http.Reque
 			http.Error(w, "Workload not found", http.StatusNotFound)
 			return
 		}
-		logger.Errorf("Failed to get logs: %v", err)
+		s.logger.Errorf("Failed to get logs: %v", err)
 		http.Error(w, "Failed to get logs", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain")
 	_, err = w.Write([]byte(logs))
 	if err != nil {
-		logger.Errorf("Failed to write logs response: %v", err)
+		s.logger.Errorf("Failed to write logs response: %v", err)
 		http.Error(w, "Failed to write logs response", http.StatusInternalServerError)
 		return
 	}
@@ -503,7 +506,7 @@ func (s *WorkloadRoutes) getLogsForWorkload(w http.ResponseWriter, r *http.Reque
 //	@Success		200		{object}	runner.RunConfig
 //	@Failure		404		{string}	string	"Not Found"
 //	@Router			/api/v1beta/workloads/{name}/export [get]
-func (*WorkloadRoutes) exportWorkload(w http.ResponseWriter, r *http.Request) {
+func (s *WorkloadRoutes) exportWorkload(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	name := chi.URLParam(r, "name")
 
@@ -514,7 +517,7 @@ func (*WorkloadRoutes) exportWorkload(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Workload configuration not found", http.StatusNotFound)
 			return
 		}
-		logger.Errorf("Failed to load workload configuration: %v", err)
+		s.logger.Errorf("Failed to load workload configuration: %v", err)
 		http.Error(w, "Failed to load workload configuration", http.StatusInternalServerError)
 		return
 	}
@@ -522,7 +525,7 @@ func (*WorkloadRoutes) exportWorkload(w http.ResponseWriter, r *http.Request) {
 	// Return the configuration as JSON
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(runnerInstance.Config); err != nil {
-		logger.Errorf("Failed to encode workload configuration: %v", err)
+		s.logger.Errorf("Failed to encode workload configuration: %v", err)
 		http.Error(w, "Failed to encode workload configuration", http.StatusInternalServerError)
 		return
 	}

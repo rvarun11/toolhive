@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/tailscale/hujson"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/transport/ssecommon"
@@ -386,7 +387,7 @@ func ensureClientConfigWithRunningMCPs(clientType MCPClient) (*ConfigFile, error
 
 // FindRegisteredClientConfigs finds all registered client configs and creates them if they don't exist
 // and ensures they are populated with the running MCPs.
-func FindRegisteredClientConfigs() ([]ConfigFile, error) {
+func FindRegisteredClientConfigs(logger *zap.SugaredLogger) ([]ConfigFile, error) {
 	clientStatuses, err := GetClientStatus()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client status: %w", err)
@@ -419,7 +420,7 @@ func FindRegisteredClientConfigs() ([]ConfigFile, error) {
 }
 
 // CreateClientConfig creates a new client configuration file for a given client type.
-func CreateClientConfig(clientType MCPClient) (*ConfigFile, error) {
+func CreateClientConfig(clientType MCPClient, logger *zap.SugaredLogger) (*ConfigFile, error) {
 	// Get home directory
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -530,6 +531,7 @@ func retrieveConfigFileMetadata(clientType MCPClient) (*ConfigFile, error) {
 	configUpdater := &JSONConfigUpdater{
 		Path:                 path,
 		MCPServersPathPrefix: clientCfg.MCPServersPathPrefix,
+		logger:               logger.NewLogger(),
 	}
 
 	// Return the configuration file metadata

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/stacklok/toolhive/pkg/healthcheck"
 	"github.com/stacklok/toolhive/pkg/logger"
 )
@@ -15,6 +17,7 @@ import (
 type MCPPinger struct {
 	targetURL string
 	client    *http.Client
+	logger    *zap.SugaredLogger
 }
 
 // NewMCPPinger creates a new MCP pinger for transparent proxies
@@ -24,6 +27,7 @@ func NewMCPPinger(targetURL string) healthcheck.MCPPinger {
 		client: &http.Client{
 			Timeout: 5 * time.Second,
 		},
+		logger: logger.NewLogger(),
 	}
 }
 
@@ -40,7 +44,7 @@ func (p *MCPPinger) Ping(ctx context.Context) (time.Duration, error) {
 		return 0, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
-	logger.Debugf("Checking SSE server health at %s", p.targetURL)
+	p.logger.Debugf("Checking SSE server health at %s", p.targetURL)
 
 	// Send the request
 	resp, err := p.client.Do(req)
@@ -56,7 +60,7 @@ func (p *MCPPinger) Ping(ctx context.Context) (time.Duration, error) {
 	// - 404 for non-existent endpoints (but server is still alive)
 	// - Other 4xx/5xx may indicate server issues
 	if resp.StatusCode >= 200 && resp.StatusCode < 500 {
-		logger.Debugf("SSE server health check successful in %v (status: %d)", duration, resp.StatusCode)
+		p.logger.Debugf("SSE server health check successful in %v (status: %d)", duration, resp.StatusCode)
 		return duration, nil
 	}
 

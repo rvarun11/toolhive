@@ -29,7 +29,7 @@ func GetClaimsFromContext(ctx context.Context) (jwt.MapClaims, bool) {
 func GetAuthenticationMiddleware(ctx context.Context, oidcConfig *TokenValidatorConfig,
 	allowOpaqueTokens bool) (func(http.Handler) http.Handler, error) {
 	if oidcConfig != nil {
-		logger.Info("OIDC validation enabled")
+		logger.Log.Info("OIDC validation enabled")
 
 		// Create JWT validator
 		jwtValidator, err := NewTokenValidator(ctx, *oidcConfig, allowOpaqueTokens)
@@ -40,15 +40,15 @@ func GetAuthenticationMiddleware(ctx context.Context, oidcConfig *TokenValidator
 		return jwtValidator.Middleware, nil
 	}
 
-	logger.Info("OIDC validation disabled, using local user authentication")
+	logger.Log.Info("OIDC validation disabled, using local user authentication")
 
 	// Get current OS user
 	currentUser, err := user.Current()
 	if err != nil {
-		logger.Warnf("Failed to get current user, using 'local' as default: %v", err)
+		logger.Log.Warnf("Failed to get current user, using 'local' as default: %v", err)
 		return LocalUserMiddleware("local"), nil
 	}
 
-	logger.Infof("Using local user authentication for user: %s", currentUser.Username)
+	logger.Log.Infof("Using local user authentication for user: %s", currentUser.Username)
 	return LocalUserMiddleware(currentUser.Username), nil
 }

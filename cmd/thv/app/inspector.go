@@ -78,7 +78,7 @@ func waitForInspectorReady(ctx context.Context, port int, statusChan chan bool) 
 			case <-ctx.Done():
 				return
 			default:
-				logger.Info("Waiting for MCP Inspector to be ready...")
+				logger.Log.Info("Waiting for MCP Inspector to be ready...")
 				time.Sleep(3 * time.Second)
 			}
 		}
@@ -145,7 +145,7 @@ func inspectorCmdFunc(cmd *cobra.Command, args []string) error {
 	// Wait for workload to be running or context to be cancelled
 	select {
 	case <-statusChan:
-		logger.Infof("Connected to MCP server: %s", serverName)
+		logger.Log.Infof("Connected to MCP server: %s", serverName)
 
 		var suffix string
 		var transportTypeStr string
@@ -159,7 +159,7 @@ func inspectorCmdFunc(cmd *cobra.Command, args []string) error {
 		inspectorURL := fmt.Sprintf(
 			"http://localhost:%d?transport=%s&serverUrl=http://host.docker.internal:%d/%s",
 			inspectorUIPort, transportTypeStr, serverPort, suffix)
-		logger.Infof("Inspector UI is now available at %s", inspectorURL)
+		logger.Log.Infof("Inspector UI is now available at %s", inspectorURL)
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("context cancelled while waiting for workload to start")

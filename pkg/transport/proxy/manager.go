@@ -12,28 +12,28 @@ import (
 // StopProcess stops the proxy process associated with the container
 func StopProcess(containerBaseName string) {
 	if containerBaseName == "" {
-		logger.Warnf("Warning: Could not find base container name in labels")
+		logger.Log.Warnf("Warning: Could not find base container name in labels")
 		return
 	}
 
 	// Try to read the PID file and kill the process
 	pid, err := process.ReadPIDFile(containerBaseName)
 	if err != nil {
-		logger.Errorf("No PID file found for %s, proxy may not be running in detached mode", containerBaseName)
+		logger.Log.Errorf("No PID file found for %s, proxy may not be running in detached mode", containerBaseName)
 		return
 	}
 
 	// PID file found, try to kill the process
-	logger.Infof("Stopping proxy process (PID: %d)...", pid)
+	logger.Log.Infof("Stopping proxy process (PID: %d)...", pid)
 	if err := process.KillProcess(pid); err != nil {
-		logger.Warnf("Warning: Failed to kill proxy process: %v", err)
+		logger.Log.Warnf("Warning: Failed to kill proxy process: %v", err)
 	} else {
-		logger.Info("Proxy process stopped")
+		logger.Log.Info("Proxy process stopped")
 	}
 
 	// Remove the PID file
 	if err := process.RemovePIDFile(containerBaseName); err != nil {
-		logger.Warnf("Warning: Failed to remove PID file: %v", err)
+		logger.Log.Warnf("Warning: Failed to remove PID file: %v", err)
 	}
 }
 
@@ -52,7 +52,7 @@ func IsRunning(containerBaseName string) bool {
 	// Check if the process exists and is running
 	isRunning, err := process.FindProcess(pid)
 	if err != nil {
-		logger.Warnf("Warning: Error checking process: %v", err)
+		logger.Log.Warnf("Warning: Error checking process: %v", err)
 		return false
 	}
 

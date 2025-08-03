@@ -84,7 +84,7 @@ func init() {
 
 	// This is used for the K8s operator which wraps the run command, but shouldn't be visible to users.
 	if err := runCmd.Flags().MarkHidden("k8s-pod-patch"); err != nil {
-		logger.Warnf("Error hiding flag: %v", err)
+		logger.Log.Warnf("Error hiding flag: %v", err)
 	}
 
 	// Add OIDC validation flags
@@ -97,10 +97,10 @@ func cleanupAndWait(workloadManager workloads.Manager, name string, cancel conte
 
 	group, err := workloadManager.DeleteWorkloads(cleanupCtx, []string{name})
 	if err != nil {
-		logger.Warnf("Failed to delete workload %q: %v", name, err)
+		logger.Log.Warnf("Failed to delete workload %q: %v", name, err)
 	} else if group != nil {
 		if err := group.Wait(); err != nil {
-			logger.Warnf("DeleteWorkloads group error for %q: %v", name, err)
+			logger.Log.Warnf("DeleteWorkloads group error for %q: %v", name, err)
 		}
 	}
 
@@ -108,7 +108,7 @@ func cleanupAndWait(workloadManager workloads.Manager, name string, cancel conte
 	select {
 	case <-errCh:
 	case <-time.After(5 * time.Second):
-		logger.Warnf("Timeout waiting for workload to stop")
+		logger.Log.Warnf("Timeout waiting for workload to stop")
 	}
 }
 
@@ -132,7 +132,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	cmdArgs := parseCommandArguments(os.Args)
 
 	// Print the processed command arguments for debugging
-	logger.Debugf("Processed cmdArgs: %v", cmdArgs)
+	logger.Log.Debugf("Processed cmdArgs: %v", cmdArgs)
 
 	// Get debug mode flag
 	debugMode, _ := cmd.Flags().GetBool("debug")
@@ -177,7 +177,7 @@ func runForeground(ctx context.Context, workloadManager workloads.Manager, runne
 	select {
 	case sig := <-sigCh:
 		if !process.IsDetached() {
-			logger.Infof("Received signal: %v, stopping server %q", sig, runnerConfig.BaseName)
+			logger.Log.Infof("Received signal: %v, stopping server %q", sig, runnerConfig.BaseName)
 			cleanupAndWait(workloadManager, runnerConfig.BaseName, cancel, errCh)
 		}
 		return nil

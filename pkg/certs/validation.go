@@ -31,7 +31,7 @@ func ValidateCACertificate(certData []byte) error {
 	// Basic validation - check if it's a CA certificate
 	if !cert.IsCA {
 		// Log a warning but don't fail - some corporate proxies use non-CA certificates
-		logger.Warnf("Certificate is not marked as a CA certificate, but proceeding anyway")
+		logger.Log.Warnf("Certificate is not marked as a CA certificate, but proceeding anyway")
 	}
 
 	return nil

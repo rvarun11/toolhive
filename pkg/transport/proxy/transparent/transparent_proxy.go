@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
 	"golang.org/x/exp/jsonrpc2"
 
 	"github.com/stacklok/toolhive/pkg/healthcheck"
@@ -66,6 +67,9 @@ type TransparentProxy struct {
 
 	// Listener for the HTTP server
 	listener net.Listener
+
+	// Logger for the proxy
+	logger *zap.SugaredLogger
 }
 
 // NewTransparentProxy creates a new transparent proxy with optional middlewares.
@@ -87,6 +91,7 @@ func NewTransparentProxy(
 		shutdownCh:        make(chan struct{}),
 		prometheusHandler: prometheusHandler,
 		sessionManager:    session.NewManager(30*time.Minute, session.NewProxySession),
+		logger:            logger.NewLogger(),
 	}
 
 	// Create MCP pinger and health checker only if enabled
@@ -108,7 +113,7 @@ func (p *TransparentProxy) setServerInitialized() {
 		p.mutex.Lock()
 		p.IsServerInitialized = true
 		p.mutex.Unlock()
-		logger.Infof("Server was initialized successfully for %s", p.containerName)
+		p.logger.Infof("Server was initialized successfully for %s", p.containerName)
 	}
 }
 
@@ -138,17 +143,17 @@ func (t *tracingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 			// Expected during shutdown or client disconnect—silently ignore
 			return nil, err
 		}
-		logger.Errorf("Failed to forward request: %v", err)
+		t.p.logger.Errorf("Failed to forward request: %v", err)
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusOK {
 		// check if we saw a valid mcp header
 		ct := resp.Header.Get("Mcp-Session-Id")
 		if ct != "" {
-			logger.Infof("Detected Mcp-Session-Id header: %s", ct)
+			t.p.logger.Infof("Detected Mcp-Session-Id header: %s", ct)
 			if _, ok := t.p.sessionManager.Get(ct); !ok {
 				if err := t.p.sessionManager.AddWithID(ct); err != nil {
-					logger.Errorf("Failed to create session from header %s: %v", ct, err)
+					t.p.logger.Errorf("Failed to create session from header %s: %v", ct, err)
 				}
 			}
 			t.p.setServerInitialized()
@@ -169,7 +174,7 @@ func readRequestBody(req *http.Request) []byte {
 	if req.Body != nil {
 		buf, err := io.ReadAll(req.Body)
 		if err != nil {
-			logger.Errorf("Failed to read request body: %v", err)
+			logger.Log.Errorf("Failed to read request body: %v", err)
 		} else {
 			reqBody = buf
 		}
@@ -183,11 +188,11 @@ func (t *tracingTransport) detectInitialize(body []byte) bool {
 		Method string `json:"method"`
 	}
 	if err := json.Unmarshal(body, &rpc); err != nil {
-		logger.Errorf("Failed to parse JSON-RPC body: %v", err)
+		t.p.logger.Errorf("Failed to parse JSON-RPC body: %v", err)
 		return false
 	}
 	if rpc.Method == "initialize" {
-		logger.Infof("Detected initialize method call for %s", t.p.containerName)
+		t.p.logger.Infof("Detected initialize method call for %s", t.p.containerName)
 		return true
 	}
 	return false
@@ -221,7 +226,7 @@ func (p *TransparentProxy) modifyForSessionID(resp *http.Response) error {
 					p.setServerInitialized()
 					err := p.sessionManager.AddWithID(sid)
 					if err != nil {
-						logger.Errorf("Failed to create session from SSE line: %v", err)
+						p.logger.Errorf("Failed to create session from SSE line: %v", err)
 					}
 					found = true
 				}
@@ -232,7 +237,7 @@ func (p *TransparentProxy) modifyForSessionID(resp *http.Response) error {
 		}
 		_, err := io.Copy(pw, originalBody)
 		if err != nil && err != io.EOF {
-			logger.Errorf("Failed to copy response body: %v", err)
+			p.logger.Errorf("Failed to copy response body: %v", err)
 		}
 	}()
 
@@ -260,7 +265,7 @@ func (p *TransparentProxy) Start(ctx context.Context) error {
 
 	// Create a handler that logs requests
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Infof("Transparent proxy: %s %s -> %s", r.Method, r.URL.Path, targetURL)
+		p.logger.Infof("Transparent proxy: %s %s -> %s", r.Method, r.URL.Path, targetURL)
 		proxy.ServeHTTP(w, r)
 	})
 
@@ -271,7 +276,7 @@ func (p *TransparentProxy) Start(ctx context.Context) error {
 	var finalHandler http.Handler = handler
 	for i := len(p.middlewares) - 1; i >= 0; i-- {
 		finalHandler = p.middlewares[i](finalHandler)
-		logger.Infof("Applied middleware %d\n", i+1)
+		p.logger.Infof("Applied middleware %d\n", i+1)
 	}
 
 	// Add the proxy handler for all paths except /health
@@ -292,7 +297,7 @@ func (p *TransparentProxy) Start(ctx context.Context) error {
 	// Add Prometheus metrics endpoint if handler is provided (no middlewares)
 	if p.prometheusHandler != nil {
 		mux.Handle("/metrics", p.prometheusHandler)
-		logger.Info("Prometheus metrics endpoint enabled at /metrics")
+		p.logger.Info("Prometheus metrics endpoint enabled at /metrics")
 	}
 	ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d", p.host, p.port))
 	if err != nil {
@@ -315,7 +320,7 @@ func (p *TransparentProxy) Start(ctx context.Context) error {
 				// Expected when listener is closed—silently return
 				return
 			}
-			logger.Errorf("Transparent proxy error: %v", err)
+			p.logger.Errorf("Transparent proxy error: %v", err)
 		}
 	}()
 	// Start health-check monitoring only if health checker is enabled
@@ -341,24 +346,24 @@ func (p *TransparentProxy) monitorHealth(parentCtx context.Context) {
 	for {
 		select {
 		case <-parentCtx.Done():
-			logger.Infof("Context cancelled, stopping health monitor for %s", p.containerName)
+			p.logger.Infof("Context cancelled, stopping health monitor for %s", p.containerName)
 			return
 		case <-p.shutdownCh:
-			logger.Infof("Shutdown initiated, stopping health monitor for %s", p.containerName)
+			p.logger.Infof("Shutdown initiated, stopping health monitor for %s", p.containerName)
 			return
 		case <-ticker.C:
 			// Perform health check only if mcp server has been initialized
 			if p.IsServerInitialized {
 				alive := p.healthChecker.CheckHealth(parentCtx)
 				if alive.Status != healthcheck.StatusHealthy {
-					logger.Infof("Health check failed for %s; initiating proxy shutdown", p.containerName)
+					p.logger.Infof("Health check failed for %s; initiating proxy shutdown", p.containerName)
 					if err := p.Stop(parentCtx); err != nil {
-						logger.Errorf("Failed to stop proxy for %s: %v", p.containerName, err)
+						p.logger.Errorf("Failed to stop proxy for %s: %v", p.containerName, err)
 					}
 					return
 				}
 			} else {
-				logger.Infof("MCP server not initialized yet, skipping health check for %s", p.containerName)
+				p.logger.Infof("MCP server not initialized yet, skipping health check for %s", p.containerName)
 			}
 		}
 	}
@@ -376,10 +381,10 @@ func (p *TransparentProxy) Stop(ctx context.Context) error {
 	if p.server != nil {
 		err := p.server.Shutdown(ctx)
 		if err != nil && err != http.ErrServerClosed && err != context.DeadlineExceeded {
-			logger.Warnf("Error during proxy shutdown: %v", err)
+			p.logger.Warnf("Error during proxy shutdown: %v", err)
 			return err
 		}
-		logger.Infof("Server for %s stopped successfully", p.containerName)
+		p.logger.Infof("Server for %s stopped successfully", p.containerName)
 		p.server = nil
 	}
 

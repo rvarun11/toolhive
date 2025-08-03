@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"github.com/stacklok/toolhive/pkg/config"
 	ct "github.com/stacklok/toolhive/pkg/container"
 	rt "github.com/stacklok/toolhive/pkg/container/runtime"
 	"github.com/stacklok/toolhive/pkg/labels"
-	"github.com/stacklok/toolhive/pkg/logger"
+	log "github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/transport"
 )
 
@@ -30,6 +32,7 @@ type Manager interface {
 
 type defaultManager struct {
 	runtime rt.Runtime
+	logger  *zap.SugaredLogger
 }
 
 // NewManager creates a new client manager instance.
@@ -41,6 +44,7 @@ func NewManager(ctx context.Context) (Manager, error) {
 
 	return &defaultManager{
 		runtime: runtime,
+		logger:  log.NewLogger(),
 	}, nil
 }
 
@@ -62,7 +66,7 @@ func (m *defaultManager) RegisterClients(ctx context.Context, clients []Client) 
 			// Check if client is already registered and skip.
 			for _, registeredClient := range c.Clients.RegisteredClients {
 				if registeredClient == string(client.Name) {
-					logger.Infof("Client %s is already registered, skipping...", client.Name)
+					m.logger.Infof("Client %s is already registered, skipping...", client.Name)
 					return
 				}
 			}
@@ -74,7 +78,7 @@ func (m *defaultManager) RegisterClients(ctx context.Context, clients []Client) 
 			return fmt.Errorf("failed to update configuration for client %s: %w", client.Name, err)
 		}
 
-		logger.Infof("Successfully registered client: %s\n", client.Name)
+		m.logger.Infof("Successfully registered client: %s\n", client.Name)
 
 		// Add currently running MCPs to the newly registered client
 		if err := m.addRunningMCPsToClient(ctx, client.Name); err != nil {
@@ -110,7 +114,7 @@ func (m *defaultManager) addRunningMCPsToClient(ctx context.Context, clientType 
 	if err != nil {
 		if errors.Is(err, ErrConfigFileNotFound) {
 			// Create a new client configuration if it doesn't exist
-			clientConfig, err = CreateClientConfig(clientType)
+			clientConfig, err = CreateClientConfig(clientType, m.logger)
 			if err != nil {
 				return fmt.Errorf("failed to create client configuration for %s: %w", clientType, err)
 			}
@@ -148,11 +152,11 @@ func (m *defaultManager) addRunningMCPsToClient(ctx context.Context, clientType 
 
 		// Update the MCP server configuration with locking
 		if err := Upsert(*clientConfig, name, url, transportType); err != nil {
-			logger.Warnf("Warning: Failed to update MCP server configuration in %s: %v", clientConfig.Path, err)
+			m.logger.Warnf("Warning: Failed to update MCP server configuration in %s: %v", clientConfig.Path, err)
 			continue
 		}
 
-		logger.Infof("Added MCP server %s to client %s\n", name, clientType)
+		m.logger.Infof("Added MCP server %s to client %s\n", name, clientType)
 	}
 
 	return nil
@@ -167,18 +171,18 @@ func (m *defaultManager) UnregisterClients(ctx context.Context, clients []Client
 				if registeredClient == string(client.Name) {
 					// Remove client from slice
 					c.Clients.RegisteredClients = append(c.Clients.RegisteredClients[:i], c.Clients.RegisteredClients[i+1:]...)
-					logger.Infof("Successfully unregistered client: %s\n", client.Name)
+					m.logger.Infof("Successfully unregistered client: %s\n", client.Name)
 					return
 				}
 			}
-			logger.Warnf("Client %s was not found in registered clients list", client.Name)
+			m.logger.Warnf("Client %s was not found in registered clients list", client.Name)
 		})
 		if err != nil {
 			return fmt.Errorf("failed to update configuration for client %s: %w", client.Name, err)
 		}
 		// Remove MCPs from client configuration
 		if err := m.removeMCPsFromClient(ctx, client.Name); err != nil {
-			logger.Warnf("Warning: Failed to remove MCPs from client %s: %v", client.Name, err)
+			m.logger.Warnf("Warning: Failed to remove MCPs from client %s: %v", client.Name, err)
 		}
 	}
 	return nil
@@ -229,11 +233,11 @@ func (m *defaultManager) removeMCPsFromClient(ctx context.Context, clientType MC
 
 		// Remove the MCP server configuration with locking
 		if err := clientConfig.ConfigUpdater.Remove(name); err != nil {
-			logger.Warnf("Warning: Failed to remove MCP server configuration from %s: %v", clientConfig.Path, err)
+			m.logger.Warnf("Warning: Failed to remove MCP server configuration from %s: %v", clientConfig.Path, err)
 			continue
 		}
 
-		logger.Infof("Removed MCP server %s from client %s\n", name, clientType)
+		m.logger.Infof("Removed MCP server %s from client %s\n", name, clientType)
 	}
 
 	return nil

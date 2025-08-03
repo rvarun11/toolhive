@@ -143,6 +143,6 @@ func printTextOutput(workloadList []core.Workload) {
 
 	// Flush the tabwriter
 	if err := w.Flush(); err != nil {
-		logger.Errorf("Warning: Failed to flush tabwriter: %v", err)
+		logger.Log.Errorf("Warning: Failed to flush tabwriter: %v", err)
 	}
 }

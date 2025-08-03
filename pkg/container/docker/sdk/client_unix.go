@@ -45,7 +45,7 @@ func newPlatformClient(socketPath string) (*http.Client, []client.Opt) {
 func findPlatformContainerSocket(rt runtime.Type) (string, runtime.Type, error) {
 	// First check for custom socket paths via environment variables
 	if customSocketPath := os.Getenv(PodmanSocketEnv); customSocketPath != "" {
-		logger.Debugf("Using Podman socket from env: %s", customSocketPath)
+		logger.Log.Debugf("Using Podman socket from env: %s", customSocketPath)
 		// validate the socket path
 		if _, err := os.Stat(customSocketPath); err != nil {
 			return "", runtime.TypePodman, fmt.Errorf("invalid Podman socket path: %w", err)
@@ -54,7 +54,7 @@ func findPlatformContainerSocket(rt runtime.Type) (string, runtime.Type, error) 
 	}
 
 	if customSocketPath := os.Getenv(DockerSocketEnv); customSocketPath != "" {
-		logger.Debugf("Using Docker socket from env: %s", customSocketPath)
+		logger.Log.Debugf("Using Docker socket from env: %s", customSocketPath)
 		// validate the socket path
 		if _, err := os.Stat(customSocketPath); err != nil {
 			return "", runtime.TypeDocker, fmt.Errorf("invalid Docker socket path: %w", err)
@@ -84,11 +84,11 @@ func findPodmanSocket() (string, error) {
 	// Check standard Podman location
 	_, err := os.Stat(PodmanSocketPath)
 	if err == nil {
-		logger.Debugf("Found Podman socket at %s", PodmanSocketPath)
+		logger.Log.Debugf("Found Podman socket at %s", PodmanSocketPath)
 		return PodmanSocketPath, nil
 	}
 
-	logger.Debugf("Failed to check Podman socket at %s: %v", PodmanSocketPath, err)
+	logger.Log.Debugf("Failed to check Podman socket at %s: %v", PodmanSocketPath, err)
 
 	// Check XDG_RUNTIME_DIR location for Podman
 	if xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR"); xdgRuntimeDir != "" {
@@ -96,11 +96,11 @@ func findPodmanSocket() (string, error) {
 		_, err := os.Stat(xdgSocketPath)
 
 		if err == nil {
-			logger.Debugf("Found Podman socket at %s", xdgSocketPath)
+			logger.Log.Debugf("Found Podman socket at %s", xdgSocketPath)
 			return xdgSocketPath, nil
 		}
 
-		logger.Debugf("Failed to check Podman socket at %s: %v", xdgSocketPath, err)
+		logger.Log.Debugf("Failed to check Podman socket at %s: %v", xdgSocketPath, err)
 	}
 
 	// Check user-specific location for Podman
@@ -109,11 +109,11 @@ func findPodmanSocket() (string, error) {
 		_, err := os.Stat(userSocketPath)
 
 		if err == nil {
-			logger.Debugf("Found Podman socket at %s", userSocketPath)
+			logger.Log.Debugf("Found Podman socket at %s", userSocketPath)
 			return userSocketPath, nil
 		}
 
-		logger.Debugf("Failed to check Podman socket at %s: %v", userSocketPath, err)
+		logger.Log.Debugf("Failed to check Podman socket at %s: %v", userSocketPath, err)
 	}
 
 	return "", fmt.Errorf("podman socket not found in standard locations")
@@ -125,11 +125,11 @@ func findDockerSocket() (string, error) {
 	_, err := os.Stat(DockerSocketPath)
 
 	if err == nil {
-		logger.Debugf("Found Docker socket at %s", DockerSocketPath)
+		logger.Log.Debugf("Found Docker socket at %s", DockerSocketPath)
 		return DockerSocketPath, nil
 	}
 
-	logger.Debugf("Failed to check Docker socket at %s: %v", DockerSocketPath, err)
+	logger.Log.Debugf("Failed to check Docker socket at %s: %v", DockerSocketPath, err)
 
 	// Try Docker Desktop socket path on macOS
 	if home := os.Getenv("HOME"); home != "" {
@@ -137,11 +137,11 @@ func findDockerSocket() (string, error) {
 		_, err := os.Stat(dockerDesktopPath)
 
 		if err == nil {
-			logger.Debugf("Found Docker Desktop socket at %s", dockerDesktopPath)
+			logger.Log.Debugf("Found Docker Desktop socket at %s", dockerDesktopPath)
 			return dockerDesktopPath, nil
 		}
 
-		logger.Debugf("Failed to check Docker Desktop socket at %s: %v", dockerDesktopPath, err)
+		logger.Log.Debugf("Failed to check Docker Desktop socket at %s: %v", dockerDesktopPath, err)
 	}
 
 	// Try Rancher Desktop socket path on macOS
@@ -150,11 +150,11 @@ func findDockerSocket() (string, error) {
 		_, err := os.Stat(rancherDesktopPath)
 
 		if err == nil {
-			logger.Debugf("Found Rancher Desktop socket at %s", rancherDesktopPath)
+			logger.Log.Debugf("Found Rancher Desktop socket at %s", rancherDesktopPath)
 			return rancherDesktopPath, nil
 		}
 
-		logger.Debugf("Failed to check Rancher Desktop socket at %s: %v", rancherDesktopPath, err)
+		logger.Log.Debugf("Failed to check Rancher Desktop socket at %s: %v", rancherDesktopPath, err)
 	}
 
 	return "", fmt.Errorf("docker socket not found in standard locations")

@@ -10,6 +10,7 @@ import (
 	"github.com/sigstore/sigstore-go/pkg/fulcio/certificate"
 	"github.com/sigstore/sigstore-go/pkg/root"
 	"github.com/sigstore/sigstore-go/pkg/verify"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/container/images"
 	"github.com/stacklok/toolhive/pkg/logger"
@@ -29,6 +30,7 @@ const (
 type Sigstore struct {
 	verifier *verify.Verifier
 	keychain authn.Keychain
+	logger   *zap.SugaredLogger
 }
 
 // Result is the result of the verification
@@ -73,6 +75,7 @@ func New(serverInfo *registry.ImageMetadata) (*Sigstore, error) {
 	return &Sigstore{
 		verifier: sev,
 		keychain: images.NewCompositeKeychain(),
+		logger:   logger.NewLogger(),
 	}, nil
 }
 
@@ -92,7 +95,7 @@ func (s *Sigstore) GetVerificationResults(
 		// We got some other unexpected error prior to querying for the signature/attestation
 		return nil, err
 	}
-	logger.Debugf("Number of sigstore bundles we managed to construct is %d", len(bundles))
+	s.logger.Debugf("Number of sigstore bundles we managed to construct is %d", len(bundles))
 
 	// If we didn't manage to construct any valid bundles, it probably means that the image is not signed.
 	if len(bundles) == 0 || errors.Is(err, ErrProvenanceNotFoundOrIncomplete) {
@@ -119,7 +122,7 @@ func getVerifiedResults(
 			verify.WithoutIdentitiesUnsafe(),
 		))
 		if err != nil {
-			logger.Info("bundle verification failed: %v", err)
+			logger.Log.Info("bundle verification failed: %v", err)
 			continue
 		}
 		// We've successfully verified and extracted the artifact provenance information
@@ -179,7 +182,7 @@ func compareBaseProperties(r *verify.VerificationResult, p *registry.Provenance)
 	// Extract the signer identity from the certificate
 	siIdentity, err := signerIdentityFromCertificate(r.Signature.Certificate)
 	if err != nil {
-		logger.Error("error parsing signer identity")
+		logger.Log.Error("error parsing signer identity")
 	}
 	// Compare repository name and reference, signer identity, runner environment, and cert issuer
 	if p.RepositoryURI != "" {

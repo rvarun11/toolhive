@@ -45,7 +45,7 @@ func GetMCPServer(
 	imageManager := images.NewImageManager(ctx)
 	// Check if the serverOrImage is a protocol scheme, e.g., uvx://, npx://, or go://
 	if runner.IsImageProtocolScheme(serverOrImage) {
-		logger.Debugf("Detected protocol scheme: %s", serverOrImage)
+		logger.Log.Debugf("Detected protocol scheme: %s", serverOrImage)
 		// Process the protocol scheme and build the image
 		caCertPath := resolveCACertPath(rawCACertPath)
 		generatedImage, err := runner.HandleProtocolScheme(ctx, imageManager, serverOrImage, caCertPath)
@@ -53,10 +53,10 @@ func GetMCPServer(
 			return "", nil, errors.Join(ErrBadProtocolScheme, err)
 		}
 		// Update the image in the runConfig with the generated image
-		logger.Debugf("Using built image: %s instead of %s", generatedImage, serverOrImage)
+		logger.Log.Debugf("Using built image: %s instead of %s", generatedImage, serverOrImage)
 		imageToUse = generatedImage
 	} else {
-		logger.Debugf("No protocol scheme detected, using image: %s", serverOrImage)
+		logger.Log.Debugf("No protocol scheme detected, using image: %s", serverOrImage)
 		// Try to find the imageMetadata in the registry
 		provider, err := registry.GetDefaultProvider()
 		if err != nil {
@@ -64,10 +64,10 @@ func GetMCPServer(
 		}
 		imageMetadata, err = provider.GetServer(serverOrImage)
 		if err != nil {
-			logger.Debugf("ImageMetadata '%s' not found in registry: %v", serverOrImage, err)
+			logger.Log.Debugf("ImageMetadata '%s' not found in registry: %v", serverOrImage, err)
 			imageToUse = serverOrImage
 		} else {
-			logger.Debugf("Found imageMetadata '%s' in registry: %v", serverOrImage, imageMetadata)
+			logger.Log.Debugf("Found imageMetadata '%s' in registry: %v", serverOrImage, imageMetadata)
 			imageToUse = imageMetadata.Image
 		}
 	}
@@ -96,43 +96,43 @@ func pullImage(ctx context.Context, image string, imageManager images.ImageManag
 
 	if isLatestTag {
 		// For "latest" tag, try to pull first
-		logger.Infof("Image %s has 'latest' tag, pulling to ensure we have the most recent version...", image)
+		logger.Log.Infof("Image %s has 'latest' tag, pulling to ensure we have the most recent version...", image)
 		err := imageManager.PullImage(ctx, image)
 		if err != nil {
 			// Pull failed, check if it exists locally
-			logger.Infof("Pull failed, checking if image exists locally: %s", image)
+			logger.Log.Infof("Pull failed, checking if image exists locally: %s", image)
 			imageExists, checkErr := imageManager.ImageExists(ctx, image)
 			if checkErr != nil {
 				return fmt.Errorf("failed to check if image exists: %v", checkErr)
 			}
 
 			if imageExists {
-				logger.Debugf("Using existing local image: %s", image)
+				logger.Log.Debugf("Using existing local image: %s", image)
 			} else {
 				return fmt.Errorf("%w: %s", ErrImageNotFound, image)
 			}
 		} else {
-			logger.Infof("Successfully pulled image: %s", image)
+			logger.Log.Infof("Successfully pulled image: %s", image)
 		}
 	} else {
 		// For non-latest tags, check locally first
-		logger.Debugf("Checking if image exists locally: %s", image)
+		logger.Log.Debugf("Checking if image exists locally: %s", image)
 		imageExists, err := imageManager.ImageExists(ctx, image)
-		logger.Debugf("ImageExists locally: %t", imageExists)
+		logger.Log.Debugf("ImageExists locally: %t", imageExists)
 		if err != nil {
 			return fmt.Errorf("failed to check if image exists locally: %v", err)
 		}
 
 		if imageExists {
-			logger.Debugf("Using existing local image: %s", image)
+			logger.Log.Debugf("Using existing local image: %s", image)
 		} else {
 			// Image doesn't exist locally, try to pull
-			logger.Infof("Image %s not found locally, pulling...", image)
+			logger.Log.Infof("Image %s not found locally, pulling...", image)
 			if err := imageManager.PullImage(ctx, image); err != nil {
 				// TODO: need more fine grained error handling here.
 				return fmt.Errorf("%w: %s", ErrImageNotFound, image)
 			}
-			logger.Infof("Successfully pulled image: %s", image)
+			logger.Log.Infof("Successfully pulled image: %s", image)
 		}
 	}
 
@@ -149,7 +149,7 @@ func resolveCACertPath(flagValue string) string {
 	// Otherwise, check configuration
 	cfg := config.GetConfig()
 	if cfg.CACertificatePath != "" {
-		logger.Debugf("Using configured CA certificate: %s", cfg.CACertificatePath)
+		logger.Log.Debugf("Using configured CA certificate: %s", cfg.CACertificatePath)
 		return cfg.CACertificatePath
 	}
 
@@ -161,7 +161,7 @@ func resolveCACertPath(flagValue string) string {
 func verifyImage(image string, server *registry.ImageMetadata, verifySetting string) error {
 	switch verifySetting {
 	case VerifyImageDisabled:
-		logger.Warn("Image verification is disabled")
+		logger.Log.Warn("Image verification is disabled")
 	case VerifyImageWarn, VerifyImageEnabled:
 		// Create a new verifier
 		v, err := verifier.New(server)
@@ -169,7 +169,7 @@ func verifyImage(image string, server *registry.ImageMetadata, verifySetting str
 			// This happens if we have no provenance entry in the registry for this server.
 			// Not finding provenance info in the registry is not a fatal error if the setting is "warn".
 			if errors.Is(err, verifier.ErrProvenanceServerInformationNotSet) && verifySetting == VerifyImageWarn {
-				logger.Warnf("MCP server %s has no provenance information set, skipping image verification", image)
+				logger.Log.Warnf("MCP server %s has no provenance information set, skipping image verification", image)
 				return nil
 			}
 			return err
@@ -182,12 +182,12 @@ func verifyImage(image string, server *registry.ImageMetadata, verifySetting str
 		}
 		if !isSafe {
 			if verifySetting == VerifyImageWarn {
-				logger.Warnf("MCP server %s failed image verification", image)
+				logger.Log.Warnf("MCP server %s failed image verification", image)
 			} else {
 				return fmt.Errorf("MCP server %s failed image verification", image)
 			}
 		} else {
-			logger.Infof("MCP server %s is verified successfully", image)
+			logger.Log.Infof("MCP server %s is verified successfully", image)
 		}
 	default:
 		return fmt.Errorf("invalid value for --image-verification: %s", verifySetting)
@@ -200,7 +200,7 @@ func hasLatestTag(imageRef string) bool {
 	ref, err := nameref.ParseReference(imageRef)
 	if err != nil {
 		// If we can't parse the reference, assume it's not "latest"
-		logger.Warnf("Warning: Failed to parse image reference: %v", err)
+		logger.Log.Warnf("Warning: Failed to parse image reference: %v", err)
 		return false
 	}
 

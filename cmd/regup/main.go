@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// Initialize the logger system
-	logger.Initialize()
+	logger := logger.NewLogger()
 
 	if err := app.NewRootCmd().Execute(); err != nil {
 		logger.Errorf("%v", err)

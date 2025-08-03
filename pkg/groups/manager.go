@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"go.uber.org/zap"
+
 	thverrors "github.com/stacklok/toolhive/pkg/errors"
 	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/runner"
@@ -22,6 +24,7 @@ const (
 type manager struct {
 	groupStore     state.Store
 	runconfigStore state.Store
+	logger         *zap.SugaredLogger
 }
 
 // NewManager creates a new group manager
@@ -35,7 +38,11 @@ func NewManager() (Manager, error) {
 		return nil, fmt.Errorf("failed to create runconfig store: %w", err)
 	}
 
-	return &manager{groupStore: store, runconfigStore: runConfigStore}, nil
+	return &manager{
+		groupStore:     store,
+		runconfigStore: runConfigStore,
+		logger:         logger.NewLogger(),
+	}, nil
 }
 
 // Create creates a new group with the given name
@@ -140,7 +147,7 @@ func (m *manager) ListWorkloadsInGroup(ctx context.Context, groupName string) ([
 		// Load the workload
 		runnerInstance, err := runner.LoadState(ctx, workloadName)
 		if err != nil {
-			logger.Warnf("Failed to load workload %s: %v", workloadName, err)
+			m.logger.Warnf("Failed to load workload %s: %v", workloadName, err)
 			continue
 		}
 

@@ -13,7 +13,6 @@ import (
 	"github.com/stacklok/toolhive/pkg/authz"
 	"github.com/stacklok/toolhive/pkg/container/runtime/mocks"
 	"github.com/stacklok/toolhive/pkg/ignore"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/permissions"
 	"github.com/stacklok/toolhive/pkg/registry"
 	"github.com/stacklok/toolhive/pkg/secrets"
@@ -120,8 +119,6 @@ func TestRunConfig_WithPorts(t *testing.T) {
 			expectError: false,
 		},
 	}
-
-	logger.Initialize()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -558,8 +555,6 @@ func (*mockEnvVarValidator) Validate(_ context.Context, _ *registry.ImageMetadat
 func TestRunConfigBuilder(t *testing.T) {
 	t.Parallel()
 
-	// Needed to prevent a nil pointer dereference in the logger.
-	logger.Initialize()
 	runtime := &mocks.MockRuntime{}
 	cmdArgs := []string{"arg1", "arg2"}
 	name := "test-server"
@@ -771,9 +766,6 @@ func TestCommaSeparatedEnvVars(t *testing.T) {
 func TestRunConfigBuilder_MetadataOverrides(t *testing.T) {
 	t.Parallel()
 
-	// Needed to prevent a nil pointer dereference in the logger.
-	logger.Initialize()
-
 	tests := []struct {
 		name               string
 		userTransport      string
@@ -874,8 +866,6 @@ func TestRunConfigBuilder_MetadataOverrides(t *testing.T) {
 func TestRunConfigBuilder_EnvironmentVariableTransportDependency(t *testing.T) {
 	t.Parallel()
 
-	// Needed to prevent a nil pointer dereference in the logger.
-	logger.Initialize()
 	runtime := &mocks.MockRuntime{}
 	validator := &mockEnvVarValidator{}
 
@@ -970,8 +960,6 @@ func TestRunConfigBuilder_CmdArgsMetadataPrepending(t *testing.T) {
 func TestRunConfigBuilder_VolumeProcessing(t *testing.T) {
 	t.Parallel()
 
-	// Needed to prevent a nil pointer dereference in the logger.
-	logger.Initialize()
 	runtime := &mocks.MockRuntime{}
 	validator := &mockEnvVarValidator{}
 

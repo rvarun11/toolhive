@@ -17,6 +17,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/browser"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 
 	"github.com/stacklok/toolhive/pkg/logger"
@@ -63,6 +64,8 @@ type Flow struct {
 	state         string
 
 	tokenSource oauth2.TokenSource
+
+	logger *zap.SugaredLogger
 }
 
 // TokenResult contains the result of the OAuth flow
@@ -121,6 +124,7 @@ func NewFlow(config *Config) (*Flow, error) {
 		config:       config,
 		oauth2Config: oauth2Config,
 		port:         port,
+		logger:       logger.NewLogger(),
 	}
 
 	// Generate PKCE parameters if enabled
@@ -183,7 +187,7 @@ func (f *Flow) Start(ctx context.Context, skipBrowser bool) (*TokenResult, error
 
 	// Start the server in a goroutine
 	go func() {
-		logger.Infof("Starting OAuth callback server on port %d", f.port)
+		f.logger.Infof("Starting OAuth callback server on port %d", f.port)
 		if err := f.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errorChan <- fmt.Errorf("failed to start callback server: %w", err)
 		}
@@ -194,7 +198,7 @@ func (f *Flow) Start(ctx context.Context, skipBrowser bool) (*TokenResult, error
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := f.server.Shutdown(shutdownCtx); err != nil {
-			logger.Warnf("Failed to shutdown OAuth callback server: %v", err)
+			f.logger.Warnf("Failed to shutdown OAuth callback server: %v", err)
 		}
 	}()
 
@@ -203,16 +207,16 @@ func (f *Flow) Start(ctx context.Context, skipBrowser bool) (*TokenResult, error
 
 	// Open browser or display URL
 	if !skipBrowser {
-		logger.Infof("Opening browser to: %s", authURL)
+		f.logger.Infof("Opening browser to: %s", authURL)
 		if err := browser.OpenURL(authURL); err != nil {
-			logger.Warnf("Failed to open browser: %v", err)
-			logger.Infof("Please manually open this URL in your browser: %s", authURL)
+			f.logger.Warnf("Failed to open browser: %v", err)
+			f.logger.Infof("Please manually open this URL in your browser: %s", authURL)
 		}
 	} else {
-		logger.Infof("Please open this URL in your browser: %s", authURL)
+		f.logger.Infof("Please open this URL in your browser: %s", authURL)
 	}
 
-	logger.Info("Waiting for OAuth callback...")
+	f.logger.Info("Waiting for OAuth callback...")
 
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -221,7 +225,7 @@ func (f *Flow) Start(ctx context.Context, skipBrowser bool) (*TokenResult, error
 	// Wait for token, error, or cancellation
 	select {
 	case token := <-tokenChan:
-		logger.Info("OAuth flow completed successfully")
+		f.logger.Info("OAuth flow completed successfully")
 		return f.processToken(token), nil
 	case err := <-errorChan:
 		return nil, fmt.Errorf("OAuth flow failed: %w", err)
@@ -351,7 +355,7 @@ func (f *Flow) handleRoot() http.HandlerFunc {
 </body>
 </html>`
 		if _, err := w.Write([]byte(htmlContent)); err != nil {
-			logger.Warnf("Failed to write HTML content: %v", err)
+			f.logger.Warnf("Failed to write HTML content: %v", err)
 		}
 	}
 }
@@ -383,12 +387,12 @@ func (f *Flow) writeSuccessPage(w http.ResponseWriter) {
 </body>
 </html>`
 	if _, err := w.Write([]byte(htmlContent)); err != nil {
-		logger.Warnf("Failed to write HTML content: %v", err)
+		f.logger.Warnf("Failed to write HTML content: %v", err)
 	}
 }
 
 // writeErrorPage writes an error page to the response
-func (*Flow) writeErrorPage(w http.ResponseWriter, err error) {
+func (f *Flow) writeErrorPage(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "DENY")
@@ -422,7 +426,7 @@ func (*Flow) writeErrorPage(w http.ResponseWriter, err error) {
 </body>
 </html>`, escapedError)
 	if _, err := w.Write([]byte(htmlContent)); err != nil {
-		logger.Warnf("Failed to write HTML content: %v", err)
+		f.logger.Warnf("Failed to write HTML content: %v", err)
 	}
 }
 
@@ -446,17 +450,17 @@ func (f *Flow) processToken(token *oauth2.Token) *TokenResult {
 		result.IDToken = idToken
 		if claims, err := f.extractJWTClaims(idToken); err == nil {
 			result.Claims = claims
-			logger.Debugf("Successfully extracted JWT claims from ID token")
+			f.logger.Debugf("Successfully extracted JWT claims from ID token")
 		} else {
-			logger.Debugf("Could not extract JWT claims from ID token: %v", err)
+			f.logger.Debugf("Could not extract JWT claims from ID token: %v", err)
 		}
 	} else {
 		// Fallback: try to extract claims from the access token (e.g., Keycloak)
 		if claims, err := f.extractJWTClaims(token.AccessToken); err == nil {
 			result.Claims = claims
-			logger.Debugf("Successfully extracted JWT claims from access token")
+			f.logger.Debugf("Successfully extracted JWT claims from access token")
 		} else {
-			logger.Debugf("Could not extract JWT claims from access token (may be opaque token): %v", err)
+			f.logger.Debugf("Could not extract JWT claims from access token (may be opaque token): %v", err)
 		}
 	}
 

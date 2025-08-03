@@ -16,14 +16,10 @@ import (
 	"github.com/stacklok/toolhive/pkg/errors"
 	"github.com/stacklok/toolhive/pkg/groups"
 	"github.com/stacklok/toolhive/pkg/groups/mocks"
-	"github.com/stacklok/toolhive/pkg/logger"
 )
 
 func TestGroupsRouter(t *testing.T) {
 	t.Parallel()
-
-	// Initialize logger to prevent panic
-	logger.Initialize()
 
 	tests := []struct {
 		name           string

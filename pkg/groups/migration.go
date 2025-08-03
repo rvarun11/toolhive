@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/stacklok/toolhive/pkg/config"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/runner"
 	"github.com/stacklok/toolhive/pkg/state"
 )
@@ -16,7 +17,7 @@ var migrationOnce sync.Once
 
 // CheckAndPerformDefaultGroupMigration checks if default group migration is needed and performs it
 // This is called once at application startup
-func CheckAndPerformDefaultGroupMigration() {
+func CheckAndPerformDefaultGroupMigration(logger *zap.SugaredLogger) {
 	migrationOnce.Do(func() {
 		appConfig := config.GetConfig()
 
@@ -25,12 +26,12 @@ func CheckAndPerformDefaultGroupMigration() {
 			return
 		}
 
-		performDefaultGroupMigration()
+		performDefaultGroupMigration(logger)
 	})
 }
 
 // performDefaultGroupMigration migrates all existing workloads to the default group
-func performDefaultGroupMigration() {
+func performDefaultGroupMigration(logger *zap.SugaredLogger) {
 	fmt.Println("Migrating existing workloads to default group...")
 	fmt.Println()
 
@@ -42,7 +43,7 @@ func performDefaultGroupMigration() {
 	}
 
 	// Create default group
-	if err := createDefaultGroup(context.Background(), groupManager); err != nil {
+	if err := createDefaultGroup(context.Background(), groupManager, logger); err != nil {
 		logger.Errorf("Failed to create default group: %v", err)
 		return
 	}
@@ -164,7 +165,7 @@ func migrateClientConfigs(ctx context.Context, groupManager Manager) error {
 }
 
 // createDefaultGroup creates the default group if it doesn't exist
-func createDefaultGroup(ctx context.Context, groupManager Manager) error {
+func createDefaultGroup(ctx context.Context, groupManager Manager, logger *zap.SugaredLogger) error {
 	logger.Infof("Creating default group '%s'", DefaultGroupName)
 	if err := groupManager.Create(ctx, DefaultGroupName); err != nil {
 		return fmt.Errorf("failed to create default group: %w", err)

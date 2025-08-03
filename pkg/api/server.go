@@ -77,7 +77,7 @@ func setupUnixSocket(address string) (net.Listener, error) {
 
 func cleanupUnixSocket(address string) {
 	if err := os.Remove(address); err != nil && !os.IsNotExist(err) {
-		logger.Warnf("failed to remove socket file: %v", err)
+		logger.Log.Warnf("failed to remove socket file: %v", err)
 	}
 }
 
@@ -103,13 +103,13 @@ func updateCheckMiddleware() func(next http.Handler) http.Handler {
 
 				updateChecker, err := updates.NewUpdateChecker(versionClient)
 				if err != nil {
-					logger.Warnf("unable to create update client for %s: %s", component, err)
+					logger.Log.Warnf("unable to create update client for %s: %s", component, err)
 					return
 				}
 
 				err = updateChecker.CheckLatestVersion()
 				if err != nil {
-					logger.Warnf("could not check for updates for %s: %s", component, err)
+					logger.Log.Warnf("could not check for updates for %s: %s", component, err)
 				}
 			}()
 			next.ServeHTTP(w, r)
@@ -228,12 +228,12 @@ func Serve(
 		return err
 	}
 
-	logger.Infof("starting %s server at %s", addrType, address)
+	logger.Log.Infof("starting %s server at %s", addrType, address)
 
 	// Start server.
 	go func() {
 		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Panicf("server stopped with error: %v", err)
+			logger.Log.Panicf("server stopped with error: %v", err)
 		}
 	}()
 
@@ -249,6 +249,6 @@ func Serve(
 		cleanupUnixSocket(address)
 	}
 
-	logger.Infof("%s server stopped", addrType)
+	logger.Log.Infof("%s server stopped", addrType)
 	return nil
 }

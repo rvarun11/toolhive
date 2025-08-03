@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -35,6 +36,7 @@ import (
 type MCPServerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	logger *zap.SugaredLogger
 }
 
 // defaultRBACRules are the default RBAC rules that the
@@ -283,7 +285,7 @@ func (r *MCPServerReconciler) createRBACResource(
 ) error {
 	desired := createResource()
 	if err := controllerutil.SetControllerReference(mcpServer, desired, r.Scheme); err != nil {
-		logger.Error(fmt.Sprintf("Failed to set controller reference for %s", resourceType), err)
+		r.logger.Error(fmt.Sprintf("Failed to set controller reference for %s", resourceType), err)
 		return nil
 	}
 
@@ -309,7 +311,7 @@ func (r *MCPServerReconciler) updateRBACResourceIfNeeded(
 ) error {
 	desired := createResource()
 	if err := controllerutil.SetControllerReference(mcpServer, desired, r.Scheme); err != nil {
-		logger.Error(fmt.Sprintf("Failed to set controller reference for %s", resourceType), err)
+		r.logger.Error(fmt.Sprintf("Failed to set controller reference for %s", resourceType), err)
 		return nil
 	}
 
@@ -404,7 +406,7 @@ func (r *MCPServerReconciler) deploymentForMCPServer(m *mcpv1alpha1.MCPServer) *
 	if finalPodTemplateSpec != nil {
 		podTemplatePatch, err := json.Marshal(finalPodTemplateSpec)
 		if err != nil {
-			logger.Errorf("Failed to marshal pod template spec: %v", err)
+			r.logger.Errorf("Failed to marshal pod template spec: %v", err)
 		} else {
 			args = append(args, fmt.Sprintf("--k8s-pod-patch=%s", string(podTemplatePatch)))
 		}
@@ -615,7 +617,7 @@ func (r *MCPServerReconciler) deploymentForMCPServer(m *mcpv1alpha1.MCPServer) *
 
 	// Set MCPServer instance as the owner and controller
 	if err := controllerutil.SetControllerReference(m, dep, r.Scheme); err != nil {
-		logger.Error("Failed to set controller reference for Deployment", err)
+		r.logger.Error("Failed to set controller reference for Deployment", err)
 		return nil
 	}
 	return dep
@@ -666,7 +668,7 @@ func (r *MCPServerReconciler) serviceForMCPServer(m *mcpv1alpha1.MCPServer) *cor
 
 	// Set MCPServer instance as the owner and controller
 	if err := controllerutil.SetControllerReference(m, svc, r.Scheme); err != nil {
-		logger.Error("Failed to set controller reference for Service", err)
+		r.logger.Error("Failed to set controller reference for Service", err)
 		return nil
 	}
 	return svc
@@ -900,7 +902,7 @@ func deploymentNeedsUpdate(deployment *appsv1.Deployment, mcpServer *mcpv1alpha1
 		if expectedPodTemplateSpec != nil {
 			expectedPatch, err := json.Marshal(expectedPodTemplateSpec)
 			if err != nil {
-				logger.Errorf("Failed to marshal expected pod template spec: %v", err)
+				logger.Log.Errorf("Failed to marshal expected pod template spec: %v", err)
 				return true // Assume change if we can't marshal
 			}
 			expectedPatchString := string(expectedPatch)
@@ -1188,13 +1190,13 @@ func (r *MCPServerReconciler) generateOIDCArgs(ctx context.Context, m *mcpv1alph
 }
 
 // generateKubernetesOIDCArgs generates OIDC args for Kubernetes service account token validation
-func (*MCPServerReconciler) generateKubernetesOIDCArgs(m *mcpv1alpha1.MCPServer) []string {
+func (r *MCPServerReconciler) generateKubernetesOIDCArgs(m *mcpv1alpha1.MCPServer) []string {
 	var args []string
 	config := m.Spec.OIDCConfig.Kubernetes
 
 	// Set defaults if config is nil
 	if config == nil {
-		logger.Infof("Kubernetes OIDCConfig is nil for MCPServer %s, using default configuration", m.Name)
+		r.logger.Infof("Kubernetes OIDCConfig is nil for MCPServer %s, using default configuration", m.Name)
 		defaultUseClusterAuth := true
 		config = &mcpv1alpha1.KubernetesOIDCConfig{
 			UseClusterAuth: &defaultUseClusterAuth, // Default to true
@@ -1256,7 +1258,7 @@ func (r *MCPServerReconciler) generateConfigMapOIDCArgs( // nolint:gocyclo
 		Namespace: m.Namespace,
 	}, configMap)
 	if err != nil {
-		logger.Errorf("Failed to get ConfigMap %s: %v", config.Name, err)
+		r.logger.Errorf("Failed to get ConfigMap %s: %v", config.Name, err)
 		return args
 	}
 

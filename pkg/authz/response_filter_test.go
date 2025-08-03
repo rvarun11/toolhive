@@ -14,14 +14,10 @@ import (
 	"golang.org/x/exp/jsonrpc2"
 
 	"github.com/stacklok/toolhive/pkg/auth"
-	"github.com/stacklok/toolhive/pkg/logger"
 )
 
 func TestResponseFilteringWriter(t *testing.T) {
 	t.Parallel()
-
-	// Initialize logger for tests
-	logger.Initialize()
 
 	// Create a Cedar authorizer with specific tool permissions
 	authorizer, err := NewCedarAuthorizer(CedarAuthorizerConfig{

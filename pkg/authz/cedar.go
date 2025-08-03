@@ -11,6 +11,7 @@ import (
 
 	cedar "github.com/cedar-policy/cedar-go"
 	"github.com/golang-jwt/jwt/v5"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/auth"
 	"github.com/stacklok/toolhive/pkg/logger"
@@ -75,6 +76,8 @@ type CedarAuthorizer struct {
 	entityFactory *EntityFactory
 	// Mutex for thread safety
 	mu sync.RWMutex
+
+	logger *zap.SugaredLogger
 }
 
 // CedarAuthorizerConfig contains configuration for the Cedar authorizer.
@@ -91,6 +94,7 @@ func NewCedarAuthorizer(config CedarAuthorizerConfig) (*CedarAuthorizer, error) 
 		policySet:     cedar.NewPolicySet(),
 		entities:      cedar.EntityMap{},
 		entityFactory: NewEntityFactory(),
+		logger:        logger.NewLogger(),
 	}
 
 	// Load policies
@@ -260,15 +264,15 @@ func (a *CedarAuthorizer) IsAuthorized(
 	}
 
 	// Debug logging for authorization
-	logger.Debugf("Cedar authorization check - Principal: %s, Action: %s, Resource: %s",
+	a.logger.Debugf("Cedar authorization check - Principal: %s, Action: %s, Resource: %s",
 		req.Principal, req.Action, req.Resource)
-	logger.Debugf("Cedar context: %+v", req.Context)
+	a.logger.Debugf("Cedar context: %+v", req.Context)
 
 	// Check authorization
 	decision, diagnostic := cedar.Authorize(a.policySet, entityMap, req)
 
 	// Log the decision
-	logger.Debugf("Cedar decision: %v, diagnostic: %+v", decision, diagnostic)
+	a.logger.Debugf("Cedar decision: %v, diagnostic: %+v", decision, diagnostic)
 
 	// Cedar's Authorize returns a Decision and a Diagnostic
 	// Check if the Diagnostic contains any errors

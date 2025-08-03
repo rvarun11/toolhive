@@ -17,7 +17,7 @@ It is written in Go and has extensive test coverage—including input validation
 	Run: func(cmd *cobra.Command, _ []string) {
 		// If no subcommand is provided, print help
 		if err := cmd.Help(); err != nil {
-			logger.Errorf("Error displaying help: %v", err)
+			logger.Log.Errorf("Error displaying help: %v", err)
 		}
 	},
 	PersistentPreRun: func(_ *cobra.Command, _ []string) {
@@ -31,7 +31,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
 	err := viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
 	if err != nil {
-		logger.Errorf("Error binding debug flag: %v", err)
+		logger.Log.Errorf("Error binding debug flag: %v", err)
 	}
 
 	// Add subcommands

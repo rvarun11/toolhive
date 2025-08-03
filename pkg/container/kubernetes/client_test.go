@@ -18,11 +18,6 @@ import (
 	"github.com/stacklok/toolhive/pkg/logger"
 )
 
-func init() {
-	// Initialize the logger for tests
-	logger.Initialize()
-}
-
 // mockWaitForStatefulSetReady is used to mock the waitForStatefulSetReady function in tests
 var mockWaitForStatefulSetReady = func(_ context.Context, _ kubernetes.Interface, _, _ string) error {
 	return nil
@@ -165,6 +160,7 @@ func TestCreateContainerWithPodTemplatePatch(t *testing.T) {
 				runtimeType:                 runtime.TypeKubernetes,
 				client:                      clientset,
 				waitForStatefulSetReadyFunc: mockWaitForStatefulSetReady,
+				logger:                      logger.NewLogger(),
 			}
 			// Create workload options with the pod template patch
 			options := runtime.NewDeployWorkloadOptions()
@@ -663,6 +659,7 @@ func TestCreateContainerWithMCP(t *testing.T) {
 				runtimeType:                 runtime.TypeKubernetes,
 				client:                      clientset,
 				waitForStatefulSetReadyFunc: mockWaitForStatefulSetReady,
+				logger:                      logger.NewLogger(),
 			}
 
 			// Deploy the workload

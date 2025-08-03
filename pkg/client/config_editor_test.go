@@ -18,8 +18,6 @@ import (
 func TestUpsertMCPServerConfig(t *testing.T) {
 	t.Parallel()
 
-	logger.Initialize()
-
 	tests := []struct {
 		mcpServerPatchPath string // the path used by the patch operation
 		mcpServerKeyPath   string // the path used to retrieve the value from the config file (for testing purposes)
@@ -40,6 +38,7 @@ func TestUpsertMCPServerConfig(t *testing.T) {
 			jsu := JSONConfigUpdater{
 				Path:                 configPath,
 				MCPServersPathPrefix: tt.mcpServerPatchPath,
+				logger:               logger.NewLogger(),
 			}
 
 			mcpServer := MCPServer{
@@ -76,6 +75,7 @@ func TestUpsertMCPServerConfig(t *testing.T) {
 			jsu := JSONConfigUpdater{
 				Path:                 configPath,
 				MCPServersPathPrefix: tt.mcpServerPatchPath,
+				logger:               logger.NewLogger(),
 			}
 
 			// add an MCP server so we can update it
@@ -117,8 +117,6 @@ func TestUpsertMCPServerConfig(t *testing.T) {
 func TestRemoveMCPServerConfigNew(t *testing.T) {
 	t.Parallel()
 
-	logger.Initialize()
-
 	tests := []struct {
 		mcpServerPatchPath string // the path used by the patch operation
 		mcpServerKeyPath   string // the path used to retrieve the value from the config file (for testing purposes)
@@ -138,6 +136,7 @@ func TestRemoveMCPServerConfigNew(t *testing.T) {
 			jsu := JSONConfigUpdater{
 				Path:                 configPath,
 				MCPServersPathPrefix: tt.mcpServerPatchPath,
+				logger:               logger.NewLogger(),
 			}
 
 			// add an MCP server so we can remove it

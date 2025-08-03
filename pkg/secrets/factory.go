@@ -250,7 +250,7 @@ func GetSecretsPassword(optionalPassword string) ([]byte, error) {
 
 		// TODO GET function should not be saving anything into keyring
 		// Store the password in the keyring for future use
-		logger.Info("writing password to os keyring")
+		logger.Log.Info("writing password to os keyring")
 		err = keyring.Set(keyringService, keyringService, string(password))
 		if err != nil {
 			return nil, fmt.Errorf("failed to store password in keyring: %w", err)

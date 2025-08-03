@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/stacklok/toolhive/pkg/container"
 	rt "github.com/stacklok/toolhive/pkg/container/runtime"
 	"github.com/stacklok/toolhive/pkg/ignore"
@@ -48,6 +50,8 @@ type HTTPTransport struct {
 	// Container monitor
 	monitor rt.Monitor
 	errorCh <-chan error
+
+	logger *zap.SugaredLogger
 }
 
 // NewHTTPTransport creates a new HTTP transport.
@@ -82,6 +86,7 @@ func NewHTTPTransport(
 		debug:             debug,
 		prometheusHandler: prometheusHandler,
 		shutdownCh:        make(chan struct{}),
+		logger:            logger.NewLogger(),
 	}
 }
 
@@ -153,7 +158,7 @@ func (t *HTTPTransport) Setup(ctx context.Context, runtime rt.Deployer, containe
 	containerOptions.AttachStdio = false
 
 	// Create the container
-	logger.Infof("Deploying workload %s from image %s...", containerName, image)
+	t.logger.Infof("Deploying workload %s from image %s...", containerName, image)
 	exposedPort, err := t.deployer.DeployWorkload(
 		ctx,
 		image,
@@ -169,7 +174,7 @@ func (t *HTTPTransport) Setup(ctx context.Context, runtime rt.Deployer, containe
 	if err != nil {
 		return fmt.Errorf("failed to create container: %v", err)
 	}
-	logger.Infof("Container created: %s", containerName)
+	t.logger.Infof("Container created: %s", containerName)
 
 	if (t.Mode() == types.TransportTypeSSE || t.Mode() == types.TransportTypeStreamableHTTP) && rt.IsKubernetesRuntime() {
 		// If the SSEHeadlessServiceName is set, use it as the target host
@@ -222,7 +227,7 @@ func (t *HTTPTransport) Start(ctx context.Context) error {
 	// Use the target port for the container
 	containerPort := t.targetPort
 	targetURI := fmt.Sprintf("http://%s:%d", targetHost, containerPort)
-	logger.Infof("Setting up transparent proxy to forward from host port %d to %s",
+	t.logger.Infof("Setting up transparent proxy to forward from host port %d to %s",
 		t.proxyPort, targetURI)
 
 	// Create the transparent proxy with middlewares (enable healthcheck for MCP servers)
@@ -232,7 +237,7 @@ func (t *HTTPTransport) Start(ctx context.Context) error {
 		return err
 	}
 
-	logger.Infof("HTTP transport started for container %s on port %d", t.containerName, t.proxyPort)
+	t.logger.Infof("HTTP transport started for container %s on port %d", t.containerName, t.proxyPort)
 
 	// Create a container monitor
 	monitorRuntime, err := container.NewFactory().Create(ctx)
@@ -270,7 +275,7 @@ func (t *HTTPTransport) Stop(ctx context.Context) error {
 	// Stop the transparent proxy
 	if t.proxy != nil {
 		if err := t.proxy.Stop(ctx); err != nil {
-			logger.Warnf("Warning: Failed to stop proxy: %v", err)
+			t.logger.Warnf("Warning: Failed to stop proxy: %v", err)
 		}
 	}
 
@@ -290,10 +295,10 @@ func (t *HTTPTransport) handleContainerExit(ctx context.Context) {
 	case <-ctx.Done():
 		return
 	case err := <-t.errorCh:
-		logger.Infof("Container %s exited: %v", t.containerName, err)
+		t.logger.Infof("Container %s exited: %v", t.containerName, err)
 		// Stop the transport when the container exits
 		if stopErr := t.Stop(ctx); stopErr != nil {
-			logger.Errorf("Error stopping transport after container exit: %v", stopErr)
+			t.logger.Errorf("Error stopping transport after container exit: %v", stopErr)
 		}
 	}
 }

@@ -188,7 +188,7 @@ func (c *RunConfig) WithPorts(proxyPort, targetPort int) (*RunConfig, error) {
 		if !networking.IsAvailable(proxyPort) {
 			return c, fmt.Errorf("requested proxy port %d is not available", proxyPort)
 		}
-		logger.Debugf("Using requested port: %d", proxyPort)
+		logger.Log.Debugf("Using requested port: %d", proxyPort)
 		selectedPort = proxyPort
 	} else {
 		// Otherwise - pick a random available port.
@@ -205,7 +205,7 @@ func (c *RunConfig) WithPorts(proxyPort, targetPort int) (*RunConfig, error) {
 		if err != nil {
 			return c, fmt.Errorf("target port error: %w", err)
 		}
-		logger.Infof("Using target port: %d", selectedTargetPort)
+		logger.Log.Infof("Using target port: %d", selectedTargetPort)
 		c.TargetPort = selectedTargetPort
 	}
 

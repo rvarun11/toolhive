@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/client"
 	"github.com/stacklok/toolhive/pkg/logger"
@@ -13,6 +14,7 @@ import (
 // ClientRoutes defines the routes for the client API.
 type ClientRoutes struct {
 	manager client.Manager
+	logger  *zap.SugaredLogger
 }
 
 // ClientRouter creates a new router for the client API.
@@ -21,6 +23,7 @@ func ClientRouter(
 ) http.Handler {
 	routes := ClientRoutes{
 		manager: manager,
+		logger:  logger.NewLogger(),
 	}
 
 	r := chi.NewRouter()
@@ -43,7 +46,7 @@ func ClientRouter(
 func (c *ClientRoutes) listClients(w http.ResponseWriter, _ *http.Request) {
 	clients, err := c.manager.ListClients()
 	if err != nil {
-		logger.Errorf("Failed to list clients: %v", err)
+		c.logger.Errorf("Failed to list clients: %v", err)
 		http.Error(w, "Failed to list clients", http.StatusInternalServerError)
 		return
 	}
@@ -71,7 +74,7 @@ func (c *ClientRoutes) registerClient(w http.ResponseWriter, r *http.Request) {
 	var newClient createClientRequest
 	err := json.NewDecoder(r.Body).Decode(&newClient)
 	if err != nil {
-		logger.Errorf("Failed to decode request body: %v", err)
+		c.logger.Errorf("Failed to decode request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -80,7 +83,7 @@ func (c *ClientRoutes) registerClient(w http.ResponseWriter, r *http.Request) {
 		{Name: newClient.Name},
 	})
 	if err != nil {
-		logger.Errorf("Failed to register client: %v", err)
+		c.logger.Errorf("Failed to register client: %v", err)
 		http.Error(w, "Failed to register client", http.StatusInternalServerError)
 		return
 	}
@@ -113,7 +116,7 @@ func (c *ClientRoutes) unregisterClient(w http.ResponseWriter, r *http.Request) 
 		{Name: client.MCPClient(clientName)},
 	})
 	if err != nil {
-		logger.Errorf("Failed to unregister client: %v", err)
+		c.logger.Errorf("Failed to unregister client: %v", err)
 		http.Error(w, "Failed to unregister client", http.StatusInternalServerError)
 		return
 	}
@@ -136,7 +139,7 @@ func (c *ClientRoutes) registerClientsBulk(w http.ResponseWriter, r *http.Reques
 	var req bulkClientRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		logger.Errorf("Failed to decode request body: %v", err)
+		c.logger.Errorf("Failed to decode request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -153,7 +156,7 @@ func (c *ClientRoutes) registerClientsBulk(w http.ResponseWriter, r *http.Reques
 
 	err = c.manager.RegisterClients(r.Context(), clients)
 	if err != nil {
-		logger.Errorf("Failed to register clients: %v", err)
+		c.logger.Errorf("Failed to register clients: %v", err)
 		http.Error(w, "Failed to register clients", http.StatusInternalServerError)
 		return
 	}
@@ -184,7 +187,7 @@ func (c *ClientRoutes) unregisterClientsBulk(w http.ResponseWriter, r *http.Requ
 	var req bulkClientRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		logger.Errorf("Failed to decode request body: %v", err)
+		c.logger.Errorf("Failed to decode request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -202,7 +205,7 @@ func (c *ClientRoutes) unregisterClientsBulk(w http.ResponseWriter, r *http.Requ
 
 	err = c.manager.UnregisterClients(r.Context(), clients)
 	if err != nil {
-		logger.Errorf("Failed to unregister clients: %v", err)
+		c.logger.Errorf("Failed to unregister clients: %v", err)
 		http.Error(w, "Failed to unregister clients", http.StatusInternalServerError)
 		return
 	}

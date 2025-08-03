@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/stacklok/toolhive/pkg/auth"
 	"github.com/stacklok/toolhive/pkg/client"
 	"github.com/stacklok/toolhive/pkg/config"
@@ -29,12 +31,16 @@ type Runner struct {
 
 	// telemetryProvider is the OpenTelemetry provider for cleanup
 	telemetryProvider *telemetry.Provider
+
+	// logger is the logger used for the runner
+	logger *zap.SugaredLogger
 }
 
 // NewRunner creates a new Runner with the provided configuration
 func NewRunner(runConfig *RunConfig) *Runner {
 	return &Runner{
 		Config: runConfig,
+		logger: logger.NewLogger(),
 	}
 }
 
@@ -79,12 +85,12 @@ func (r *Runner) Run(ctx context.Context) error {
 	transportConfig.Middlewares = append(transportConfig.Middlewares, authMiddleware)
 
 	// Add MCP parsing middleware after authentication
-	logger.Info("MCP parsing middleware enabled for transport")
+	r.logger.Info("MCP parsing middleware enabled for transport")
 	transportConfig.Middlewares = append(transportConfig.Middlewares, mcp.ParsingMiddleware)
 
 	// Add telemetry middleware if telemetry configuration is provided
 	if r.Config.TelemetryConfig != nil {
-		logger.Info("OpenTelemetry instrumentation enabled for transport")
+		r.logger.Info("OpenTelemetry instrumentation enabled for transport")
 
 		// Create telemetry provider
 		telemetryProvider, err := telemetry.NewProvider(ctx, *r.Config.TelemetryConfig)
@@ -99,7 +105,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		// Add Prometheus handler to transport config if metrics port is configured
 		if r.Config.TelemetryConfig.EnablePrometheusMetricsPath {
 			transportConfig.PrometheusHandler = telemetryProvider.PrometheusHandler()
-			logger.Infof("Prometheus metrics will be exposed on port %d at /metrics", r.Config.Port)
+			r.logger.Infof("Prometheus metrics will be exposed on port %d at /metrics", r.Config.Port)
 		}
 
 		// Store provider for cleanup
@@ -108,7 +114,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	// Add authorization middleware if authorization configuration is provided
 	if r.Config.AuthzConfig != nil {
-		logger.Info("Authorization enabled for transport")
+		r.logger.Info("Authorization enabled for transport")
 
 		// Get the middleware from the configuration
 		middleware, err := r.Config.AuthzConfig.CreateMiddleware()
@@ -122,7 +128,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	// Add audit middleware if audit configuration is provided
 	if r.Config.AuditConfig != nil {
-		logger.Info("Audit logging enabled for transport")
+		r.logger.Info("Audit logging enabled for transport")
 
 		// Set the component name if not already set
 		if r.Config.AuditConfig.Component == "" {
@@ -149,7 +155,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	// Save the configuration to the state store
 	if err := r.SaveState(ctx); err != nil {
-		logger.Warnf("Warning: Failed to save run configuration: %v", err)
+		r.logger.Warnf("Warning: Failed to save run configuration: %v", err)
 	}
 
 	// Process secrets if provided
@@ -175,7 +181,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	// Set up the transport
-	logger.Infof("Setting up %s transport...", r.Config.Transport)
+	r.logger.Infof("Setting up %s transport...", r.Config.Transport)
 	if err := transportHandler.Setup(
 		ctx, r.Config.Deployer, r.Config.ContainerName, r.Config.Image, r.Config.CmdArgs,
 		r.Config.EnvVars, r.Config.ContainerLabels, r.Config.PermissionProfile, r.Config.K8sPodTemplatePatch,
@@ -185,53 +191,53 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	// Start the transport (which also starts the container and monitoring)
-	logger.Infof("Starting %s transport for %s...", r.Config.Transport, r.Config.ContainerName)
+	r.logger.Infof("Starting %s transport for %s...", r.Config.Transport, r.Config.ContainerName)
 	if err := transportHandler.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start transport: %v", err)
 	}
 
-	logger.Infof("MCP server %s started successfully", r.Config.ContainerName)
+	r.logger.Infof("MCP server %s started successfully", r.Config.ContainerName)
 
 	// Update client configurations with the MCP server URL.
 	// Note that this function checks the configuration to determine which
 	// clients should be updated, if any.
-	if err := updateClientConfigurations(r.Config.ContainerName, r.Config.ContainerLabels, "localhost", r.Config.Port); err != nil {
-		logger.Warnf("Warning: Failed to update client configurations: %v", err)
+	if err := updateClientConfigurations(r.Config.ContainerName, r.Config.ContainerLabels, "localhost", r.Config.Port, r.logger); err != nil {
+		r.logger.Warnf("Warning: Failed to update client configurations: %v", err)
 	}
 
 	// Define a function to stop the MCP server
 	stopMCPServer := func(reason string) {
-		logger.Infof("Stopping MCP server: %s", reason)
+		r.logger.Infof("Stopping MCP server: %s", reason)
 
 		// Stop the transport (which also stops the container, monitoring, and handles removal)
-		logger.Infof("Stopping %s transport...", r.Config.Transport)
+		r.logger.Infof("Stopping %s transport...", r.Config.Transport)
 		if err := transportHandler.Stop(ctx); err != nil {
-			logger.Warnf("Warning: Failed to stop transport: %v", err)
+			r.logger.Warnf("Warning: Failed to stop transport: %v", err)
 		}
 
 		// Cleanup telemetry provider
 		if err := r.Cleanup(ctx); err != nil {
-			logger.Warnf("Warning: Failed to cleanup telemetry: %v", err)
+			r.logger.Warnf("Warning: Failed to cleanup telemetry: %v", err)
 		}
 
 		// Remove the PID file if it exists
 		if err := process.RemovePIDFile(r.Config.BaseName); err != nil {
-			logger.Warnf("Warning: Failed to remove PID file: %v", err)
+			r.logger.Warnf("Warning: Failed to remove PID file: %v", err)
 		}
 
-		logger.Infof("MCP server %s stopped", r.Config.ContainerName)
+		r.logger.Infof("MCP server %s stopped", r.Config.ContainerName)
 	}
 
 	if process.IsDetached() {
 		// We're a detached process running in foreground mode
 		// Write the PID to a file so the stop command can kill the process
 		if err := process.WriteCurrentPIDFile(r.Config.BaseName); err != nil {
-			logger.Warnf("Warning: Failed to write PID file: %v", err)
+			r.logger.Warnf("Warning: Failed to write PID file: %v", err)
 		}
 
-		logger.Infof("Running as detached process (PID: %d)", os.Getpid())
+		r.logger.Infof("Running as detached process (PID: %d)", os.Getpid())
 	} else {
-		logger.Info("Press Ctrl+C to stop or wait for container to exit")
+		r.logger.Info("Press Ctrl+C to stop or wait for container to exit")
 	}
 
 	// Set up signal handling
@@ -246,7 +252,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		for {
 			// Safely check if transportHandler is nil
 			if transportHandler == nil {
-				logger.Info("Transport handler is nil, exiting monitoring routine...")
+				r.logger.Info("Transport handler is nil, exiting monitoring routine...")
 				close(doneCh)
 				return
 			}
@@ -254,14 +260,14 @@ func (r *Runner) Run(ctx context.Context) error {
 			// Check if the transport is still running
 			running, err := transportHandler.IsRunning(ctx)
 			if err != nil {
-				logger.Errorf("Error checking transport status: %v", err)
+				r.logger.Errorf("Error checking transport status: %v", err)
 				// Don't exit immediately on error, try again after pause
 				time.Sleep(1 * time.Second)
 				continue
 			}
 			if !running {
 				// Transport is no longer running (container exited or was stopped)
-				logger.Info("Transport is no longer running, exiting...")
+				r.logger.Info("Transport is no longer running, exiting...")
 				close(doneCh)
 				return
 			}
@@ -279,10 +285,10 @@ func (r *Runner) Run(ctx context.Context) error {
 		// The transport has already been stopped (likely by the container monitor)
 		// Clean up the PID file and state
 		if err := process.RemovePIDFile(r.Config.BaseName); err != nil {
-			logger.Warnf("Warning: Failed to remove PID file: %v", err)
+			r.logger.Warnf("Warning: Failed to remove PID file: %v", err)
 		}
 
-		logger.Infof("MCP server %s stopped", r.Config.ContainerName)
+		r.logger.Infof("MCP server %s stopped", r.Config.ContainerName)
 	}
 
 	return nil
@@ -291,9 +297,9 @@ func (r *Runner) Run(ctx context.Context) error {
 // Cleanup performs cleanup operations for the runner, including shutting down telemetry.
 func (r *Runner) Cleanup(ctx context.Context) error {
 	if r.telemetryProvider != nil {
-		logger.Debug("Shutting down telemetry provider")
+		r.logger.Debug("Shutting down telemetry provider")
 		if err := r.telemetryProvider.Shutdown(ctx); err != nil {
-			logger.Warnf("Warning: Failed to shutdown telemetry provider: %v", err)
+			r.logger.Warnf("Warning: Failed to shutdown telemetry provider: %v", err)
 			return err
 		}
 	}
@@ -306,9 +312,10 @@ func updateClientConfigurations(
 	containerLabels map[string]string,
 	host string,
 	proxyPort int,
+	logger *zap.SugaredLogger,
 ) error {
 	// Find client configuration files
-	clientConfigs, err := client.FindRegisteredClientConfigs()
+	clientConfigs, err := client.FindRegisteredClientConfigs(logger)
 	if err != nil {
 		return fmt.Errorf("failed to find client configurations: %w", err)
 	}

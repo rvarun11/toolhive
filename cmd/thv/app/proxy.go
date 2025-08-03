@@ -147,7 +147,7 @@ func init() {
 
 	// Mark target-uri as required
 	if err := proxyCmd.MarkFlagRequired("target-uri"); err != nil {
-		logger.Warnf("Warning: Failed to mark flag as required: %v", err)
+		logger.Log.Warnf("Warning: Failed to mark flag as required: %v", err)
 	}
 }
 
@@ -174,7 +174,7 @@ func proxyCmdFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	logger.Infof("Using host port: %d", port)
+	logger.Log.Infof("Using host port: %d", port)
 
 	// Handle OAuth authentication to the remote server if needed
 	var tokenSource *oauth2.TokenSource
@@ -220,7 +220,7 @@ func proxyCmdFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the transparent proxy
-	logger.Infof("Setting up transparent proxy to forward from host port %d to %s",
+	logger.Log.Infof("Setting up transparent proxy to forward from host port %d to %s",
 		port, proxyTargetURI)
 
 	// Create the transparent proxy with middlewares
@@ -229,15 +229,15 @@ func proxyCmdFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to start proxy: %v", err)
 	}
 
-	logger.Infof("Transparent proxy started for server %s on port %d -> %s",
+	logger.Log.Infof("Transparent proxy started for server %s on port %d -> %s",
 		serverName, port, proxyTargetURI)
-	logger.Info("Press Ctrl+C to stop")
+	logger.Log.Info("Press Ctrl+C to stop")
 
 	<-ctx.Done()
-	logger.Infof("Interrupt received, proxy is shutting down. Please wait for connections to close...")
+	logger.Log.Infof("Interrupt received, proxy is shutting down. Please wait for connections to close...")
 
 	if err := proxy.CloseListener(); err != nil {
-		logger.Warnf("Error closing proxy listener: %v", err)
+		logger.Log.Warnf("Error closing proxy listener: %v", err)
 	}
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -358,7 +358,7 @@ func extractParameter(params, paramName string) string {
 
 // performOAuthFlow performs the OAuth authentication flow
 func performOAuthFlow(ctx context.Context, issuer, clientID, clientSecret string, scopes []string) (*oauth2.TokenSource, error) {
-	logger.Info("Starting OAuth authentication flow...")
+	logger.Log.Info("Starting OAuth authentication flow...")
 
 	// Create OAuth config from OIDC discovery
 	oauthConfig, err := oauth.CreateOAuthConfigFromOIDC(
@@ -399,15 +399,15 @@ func performOAuthFlow(ctx context.Context, issuer, clientID, clientSecret string
 		return nil, fmt.Errorf("OAuth flow failed: %w", err)
 	}
 
-	logger.Info("OAuth authentication successful")
+	logger.Log.Info("OAuth authentication successful")
 
 	// Log token info (without exposing the actual token)
 	if tokenResult.Claims != nil {
 		if sub, ok := tokenResult.Claims["sub"].(string); ok {
-			logger.Infof("Authenticated as subject: %s", sub)
+			logger.Log.Infof("Authenticated as subject: %s", sub)
 		}
 		if email, ok := tokenResult.Claims["email"].(string); ok {
-			logger.Infof("Authenticated email: %s", email)
+			logger.Log.Infof("Authenticated email: %s", email)
 		}
 	}
 
@@ -445,12 +445,12 @@ func handleOutgoingAuthentication(ctx context.Context) (*oauth2.TokenSource, err
 	// Try to detect authentication requirements from WWW-Authenticate header
 	authInfo, err := detectAuthenticationFromServer(ctx, proxyTargetURI)
 	if err != nil {
-		logger.Debugf("Could not detect authentication from server: %v", err)
+		logger.Log.Debugf("Could not detect authentication from server: %v", err)
 		return nil, nil // Not an error, just no auth detected
 	}
 
 	if authInfo != nil {
-		logger.Infof("Detected authentication requirement from server: %s", authInfo.Realm)
+		logger.Log.Infof("Detected authentication requirement from server: %s", authInfo.Realm)
 
 		if remoteAuthClientID == "" {
 			return nil, fmt.Errorf("detected OAuth requirement but no remote-auth-client-id provided")
@@ -468,7 +468,7 @@ func handleOutgoingAuthentication(ctx context.Context) (*oauth2.TokenSource, err
 func resolveClientSecret() (string, error) {
 	// 1. Check if provided directly via flag
 	if remoteAuthClientSecret != "" {
-		logger.Debug("Using client secret from command-line flag")
+		logger.Log.Debug("Using client secret from command-line flag")
 		return remoteAuthClientSecret, nil
 	}
 
@@ -476,7 +476,7 @@ func resolveClientSecret() (string, error) {
 	if remoteAuthClientSecretFile != "" {
 		// Clean the file path to prevent path traversal
 		cleanPath := filepath.Clean(remoteAuthClientSecretFile)
-		logger.Debugf("Reading client secret from file: %s", cleanPath)
+		logger.Log.Debugf("Reading client secret from file: %s", cleanPath)
 		// #nosec G304 - file path is cleaned above
 		secretBytes, err := os.ReadFile(cleanPath)
 		if err != nil {
@@ -491,12 +491,12 @@ func resolveClientSecret() (string, error) {
 
 	// 3. Check environment variable
 	if secret := os.Getenv(envOAuthClientSecret); secret != "" {
-		logger.Debugf("Using client secret from %s environment variable", envOAuthClientSecret)
+		logger.Log.Debugf("Using client secret from %s environment variable", envOAuthClientSecret)
 		return secret, nil
 	}
 
 	// No client secret found - this is acceptable for PKCE flows
-	logger.Debug("No client secret provided - using PKCE flow")
+	logger.Log.Debug("No client secret provided - using PKCE flow")
 	return "", nil
 }
 

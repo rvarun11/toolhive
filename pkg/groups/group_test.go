@@ -11,14 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/state/mocks"
 )
-
-func init() {
-	// Initialize logger for tests
-	logger.Initialize()
-}
 
 const testGroupName = "testgroup"
 

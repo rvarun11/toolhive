@@ -11,6 +11,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/gofrs/flock"
+	"go.uber.org/zap"
 
 	rt "github.com/stacklok/toolhive/pkg/container/runtime"
 	"github.com/stacklok/toolhive/pkg/core"
@@ -41,6 +42,7 @@ func NewFileStatusManager(runtime rt.Runtime) StatusManager {
 	return &fileStatusManager{
 		baseDir: baseDir,
 		runtime: runtime,
+		logger:  logger.NewLogger(),
 	}
 }
 
@@ -50,6 +52,7 @@ func NewFileStatusManager(runtime rt.Runtime) StatusManager {
 type fileStatusManager struct {
 	baseDir string
 	runtime rt.Runtime
+	logger  *zap.SugaredLogger
 }
 
 // workloadStatusFile represents the JSON structure stored on disk
@@ -84,7 +87,7 @@ func (f *fileStatusManager) CreateWorkloadStatus(ctx context.Context, workloadNa
 			return fmt.Errorf("failed to write status file for workload %s: %w", workloadName, err)
 		}
 
-		logger.Debugf("workload %s created with starting status", workloadName)
+		f.logger.Debugf("workload %s created with starting status", workloadName)
 		return nil
 	})
 }
@@ -177,7 +180,7 @@ func (f *fileStatusManager) ListWorkloads(ctx context.Context, listAll bool, lab
 	for _, container := range runtimeContainers {
 		workload, err := WorkloadFromContainerInfo(&container)
 		if err != nil {
-			logger.Warnf("failed to convert container info for workload %s: %v", container.Name, err)
+			f.logger.Warnf("failed to convert container info for workload %s: %v", container.Name, err)
 			continue
 		}
 		workloadMap[container.Name] = workload
@@ -228,7 +231,7 @@ func (f *fileStatusManager) SetWorkloadStatus(
 		// Check if file exists
 		if _, err := os.Stat(statusFilePath); os.IsNotExist(err) {
 			// File doesn't exist, do nothing as per interface contract
-			logger.Debugf("workload %s does not exist, skipping status update", workloadName)
+			f.logger.Debugf("workload %s does not exist, skipping status update", workloadName)
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("failed to check status file for workload %s: %w", workloadName, err)
@@ -249,12 +252,12 @@ func (f *fileStatusManager) SetWorkloadStatus(
 			return fmt.Errorf("failed to write updated status for workload %s: %w", workloadName, err)
 		}
 
-		logger.Debugf("workload %s set to status %s (context: %s)", workloadName, status, contextMsg)
+		f.logger.Debugf("workload %s set to status %s (context: %s)", workloadName, status, contextMsg)
 		return nil
 	})
 
 	if err != nil {
-		logger.Errorf("error updating workload %s status: %v", workloadName, err)
+		f.logger.Errorf("error updating workload %s status: %v", workloadName, err)
 	}
 }
 
@@ -267,7 +270,7 @@ func (f *fileStatusManager) DeleteWorkloadStatus(ctx context.Context, workloadNa
 		}
 
 		// Remove lock file (best effort) - done by withFileLock after this function returns
-		logger.Debugf("workload %s status deleted", workloadName)
+		f.logger.Debugf("workload %s status deleted", workloadName)
 		return nil
 	})
 }
@@ -304,11 +307,11 @@ func (f *fileStatusManager) withFileLock(ctx context.Context, workloadName strin
 	fileLock := flock.New(lockFilePath)
 	defer func() {
 		if err := fileLock.Unlock(); err != nil {
-			logger.Warnf("failed to unlock file %s: %v", lockFilePath, err)
+			f.logger.Warnf("failed to unlock file %s: %v", lockFilePath, err)
 		}
 		// Attempt to remove lock file (best effort)
 		if err := os.Remove(lockFilePath); err != nil && !os.IsNotExist(err) {
-			logger.Warnf("failed to remove lock file for workload %s: %v", workloadName, err)
+			f.logger.Warnf("failed to remove lock file for workload %s: %v", workloadName, err)
 		}
 	}()
 
@@ -337,7 +340,7 @@ func (f *fileStatusManager) withFileReadLock(ctx context.Context, workloadName s
 	fileLock := flock.New(lockFilePath)
 	defer func() {
 		if err := fileLock.Unlock(); err != nil {
-			logger.Warnf("failed to unlock file %s: %v", lockFilePath, err)
+			f.logger.Warnf("failed to unlock file %s: %v", lockFilePath, err)
 		}
 	}()
 
@@ -417,7 +420,7 @@ func (f *fileStatusManager) getWorkloadsFromFiles() (map[string]core.Workload, e
 		// Read the status file
 		statusFile, err := f.readStatusFile(file)
 		if err != nil {
-			logger.Warnf("failed to read status file %s: %v", file, err)
+			f.logger.Warnf("failed to read status file %s: %v", file, err)
 			continue
 		}
 

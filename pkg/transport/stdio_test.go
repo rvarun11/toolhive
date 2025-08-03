@@ -100,8 +100,6 @@ func TestSanitizeJSONString(t *testing.T) {
 
 func TestParseAndForwardJSONRPC(t *testing.T) {
 	t.Parallel()
-	// Initialize logger for testing
-	logger.Initialize()
 
 	tests := []struct {
 		name          string
@@ -148,6 +146,7 @@ func TestParseAndForwardJSONRPC(t *testing.T) {
 			// Create transport with mock proxy
 			transport := &StdioTransport{
 				httpProxy: mockProxy,
+				logger:    logger.NewLogger(),
 			}
 
 			// Set up expectations if the message should be forwarded

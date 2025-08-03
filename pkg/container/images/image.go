@@ -29,14 +29,14 @@ type ImageManager interface {
 func NewImageManager(ctx context.Context) ImageManager {
 	// Check if we are running in a Kubernetes environment
 	if runtime.IsKubernetesRuntime() {
-		logger.Debug("running in Kubernetes environment, using no-op image manager")
+		logger.Log.Debug("running in Kubernetes environment, using no-op image manager")
 		return &NoopImageManager{}
 	}
 
 	// Check if we are running in a Docker or compatible environment
 	dockerClient, _, _, err := sdk.NewDockerClient(ctx)
 	if err != nil {
-		logger.Debug("no docker runtime found, using no-op image manager")
+		logger.Log.Debug("no docker runtime found, using no-op image manager")
 		return &NoopImageManager{}
 	}
 

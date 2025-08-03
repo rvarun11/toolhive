@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"go.uber.org/zap"
 	"golang.org/x/term"
 
 	"github.com/stacklok/toolhive/pkg/config"
@@ -65,11 +66,13 @@ func (*DetachedEnvVarValidator) Validate(
 // CLIEnvVarValidator implements the EnvVarValidator interface for
 // CLI usage. If any missing, mandatory variables are found, this code will
 // prompt the user to supply them through stdin.
-type CLIEnvVarValidator struct{}
+type CLIEnvVarValidator struct {
+	logger *zap.SugaredLogger
+}
 
 // Validate checks that all required environment variables and secrets are provided
 // and returns the processed environment variables to be set.
-func (*CLIEnvVarValidator) Validate(
+func (v *CLIEnvVarValidator) Validate(
 	ctx context.Context,
 	metadata *registry.ImageMetadata,
 	runConfig *RunConfig,
@@ -103,7 +106,7 @@ func (*CLIEnvVarValidator) Validate(
 			if envVar.Required {
 				value, err := promptForEnvironmentVariable(envVar)
 				if err != nil {
-					logger.Warnf("Warning: Failed to read input for %s: %v", envVar.Name, err)
+					v.logger.Warnf("Warning: Failed to read input for %s: %v", envVar.Name, err)
 					continue
 				}
 				if value != "" {
@@ -125,12 +128,12 @@ func promptForEnvironmentVariable(envVar *registry.EnvVar) (string, error) {
 	var byteValue []byte
 	var err error
 	if envVar.Secret {
-		logger.Infof("Required secret environment variable: %s (%s)", envVar.Name, envVar.Description)
+		logger.Log.Infof("Required secret environment variable: %s (%s)", envVar.Name, envVar.Description)
 		fmt.Printf("Enter value for %s (input will be hidden): ", envVar.Name)
 		byteValue, err = term.ReadPassword(int(os.Stdin.Fd()))
 		fmt.Println() // Move to the next line after hidden input
 	} else {
-		logger.Infof("Required environment variable: %s (%s)", envVar.Name, envVar.Description)
+		logger.Log.Infof("Required environment variable: %s (%s)", envVar.Name, envVar.Description)
 		fmt.Printf("Enter value for %s: ", envVar.Name)
 		// For non-secret input, we can use a simple fmt.Scanln or bufio.Scanner
 		var input string
@@ -181,18 +184,18 @@ func addAsSecret(
 	}
 
 	if err := secretsManager.SetSecret(ctx, secretName, value); err != nil {
-		logger.Warnf("Warning: Failed to store secret %s: %v", secretName, err)
-		logger.Warnf("Falling back to environment variable for %s", envVar.Name)
+		logger.Log.Warnf("Warning: Failed to store secret %s: %v", secretName, err)
+		logger.Log.Warnf("Falling back to environment variable for %s", envVar.Name)
 		*envVars = append(*envVars, fmt.Sprintf("%s=%s", envVar.Name, value))
-		logger.Debugf("Added environment variable (secret fallback): %s", envVar.Name)
+		logger.Log.Debugf("Added environment variable (secret fallback): %s", envVar.Name)
 	} else {
 		// Create secret reference for RunConfig
 		secretEntry := fmt.Sprintf("%s,target=%s", secretName, envVar.Name)
 		*secretsList = append(*secretsList, secretEntry)
 		if envVar.Required {
-			logger.Debugf("Created secret for %s: %s", envVar.Name, secretName)
+			logger.Log.Debugf("Created secret for %s: %s", envVar.Name, secretName)
 		} else {
-			logger.Debugf("Created secret with default value for %s: %s", envVar.Name, secretName)
+			logger.Log.Debugf("Created secret with default value for %s: %s", envVar.Name, secretName)
 		}
 	}
 }
@@ -214,8 +217,8 @@ func initializeSecretsManagerIfNeeded(registryEnvVars []*registry.EnvVar) secret
 
 	secretsManager, err := getSecretsManager()
 	if err != nil {
-		logger.Warnf("Warning: Failed to initialize secrets manager: %v", err)
-		logger.Warnf("Secret environment variables will be stored as regular environment variables")
+		logger.Log.Warnf("Warning: Failed to initialize secrets manager: %v", err)
+		logger.Log.Warnf("Secret environment variables will be stored as regular environment variables")
 		return nil
 	}
 
@@ -298,15 +301,15 @@ func addAsEnvironmentVariable(
 
 	if envVar.Secret {
 		if envVar.Required {
-			logger.Debugf("Added secret as environment variable (no secrets manager): %s", envVar.Name)
+			logger.Log.Debugf("Added secret as environment variable (no secrets manager): %s", envVar.Name)
 		} else {
-			logger.Debugf("Added default secret as environment variable (no secrets manager): %s", envVar.Name)
+			logger.Log.Debugf("Added default secret as environment variable (no secrets manager): %s", envVar.Name)
 		}
 	} else {
 		if envVar.Required {
-			logger.Debugf("Added environment variable: %s", envVar.Name)
+			logger.Log.Debugf("Added environment variable: %s", envVar.Name)
 		} else {
-			logger.Debugf("Using default value for %s: %s", envVar.Name, value)
+			logger.Log.Debugf("Using default value for %s: %s", envVar.Name, value)
 		}
 	}
 }

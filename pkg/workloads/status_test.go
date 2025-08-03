@@ -17,10 +17,6 @@ import (
 
 const testWorkloadName = "test-workload"
 
-func init() {
-	logger.Initialize()
-}
-
 func TestNewStatusManagerFromRuntime(t *testing.T) {
 	t.Parallel()
 
@@ -44,7 +40,10 @@ func TestRuntimeStatusManager_CreateWorkloadStatus(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRuntime := mocks.NewMockRuntime(ctrl)
-	manager := &runtimeStatusManager{runtime: mockRuntime}
+	manager := &runtimeStatusManager{
+		runtime: mockRuntime,
+		logger:  logger.NewLogger(),
+	}
 
 	ctx := context.Background()
 
@@ -265,7 +264,10 @@ func TestRuntimeStatusManager_SetWorkloadStatus(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRuntime := mocks.NewMockRuntime(ctrl)
-	manager := &runtimeStatusManager{runtime: mockRuntime}
+	manager := &runtimeStatusManager{
+		runtime: mockRuntime,
+		logger:  logger.NewLogger(),
+	}
 
 	ctx := context.Background()
 	status := rt.WorkloadStatusRunning

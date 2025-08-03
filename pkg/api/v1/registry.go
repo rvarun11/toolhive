@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/registry"
@@ -18,11 +19,15 @@ const (
 // RegistryRoutes defines the routes for the registry API.
 type RegistryRoutes struct {
 	provider registry.Provider
+	logger   *zap.SugaredLogger
 }
 
 // RegistryRouter creates a new router for the registry API.
 func RegistryRouter(provider registry.Provider) http.Handler {
-	routes := RegistryRoutes{provider: provider}
+	routes := RegistryRoutes{
+		provider: provider,
+		logger:   logger.NewLogger(),
+	}
 
 	r := chi.NewRouter()
 	r.Get("/", routes.listRegistries)
@@ -120,7 +125,7 @@ func (routes *RegistryRoutes) getRegistry(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Errorf("Failed to encode response: %v", err)
+		routes.logger.Errorf("Failed to encode response: %v", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
@@ -170,7 +175,7 @@ func (routes *RegistryRoutes) listServers(w http.ResponseWriter, r *http.Request
 
 	servers, err := routes.provider.ListServers()
 	if err != nil {
-		logger.Errorf("Failed to list servers: %v", err)
+		routes.logger.Errorf("Failed to list servers: %v", err)
 		http.Error(w, "Failed to list servers", http.StatusInternalServerError)
 		return
 	}
@@ -178,7 +183,7 @@ func (routes *RegistryRoutes) listServers(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	response := listServersResponse{Servers: servers}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Errorf("Failed to encode response: %v", err)
+		routes.logger.Errorf("Failed to encode response: %v", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
@@ -207,7 +212,7 @@ func (routes *RegistryRoutes) getServer(w http.ResponseWriter, r *http.Request) 
 
 	server, err := routes.provider.GetServer(serverName)
 	if err != nil {
-		logger.Errorf("Failed to get server '%s': %v", serverName, err)
+		routes.logger.Errorf("Failed to get server '%s': %v", serverName, err)
 		http.Error(w, "ImageMetadata not found", http.StatusNotFound)
 		return
 	}
@@ -215,7 +220,7 @@ func (routes *RegistryRoutes) getServer(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	response := getServerResponse{Server: server}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Errorf("Failed to encode response: %v", err)
+		routes.logger.Errorf("Failed to encode response: %v", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
