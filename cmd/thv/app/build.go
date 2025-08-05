@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/stacklok/toolhive/pkg/container/images"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/runner"
 )
 
@@ -70,7 +69,7 @@ func buildCmdFunc(cmd *cobra.Command, args []string) error {
 	imageManager := images.NewImageManager(ctx)
 
 	// Build the image using the new protocol handler with custom name
-	imageName, err := runner.BuildFromProtocolSchemeWithName(ctx, imageManager, protocolScheme, "", buildFlags.Tag)
+	imageName, err := runner.BuildFromProtocolSchemeWithName(ctx, imageManager, protocolScheme, "", buildFlags.Tag, logger)
 	if err != nil {
 		return fmt.Errorf("failed to build container for %s: %v", protocolScheme, err)
 	}

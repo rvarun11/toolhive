@@ -16,7 +16,7 @@ var migrationOnce sync.Once
 // This is called once at application startup
 func CheckAndPerformAutoDiscoveryMigration(logger *zap.SugaredLogger) {
 	migrationOnce.Do(func() {
-		appConfig := config.GetConfig()
+		appConfig := config.GetConfig(logger)
 		// Check if auto-discovery flag is set to true, use of deprecated object is expected here
 		if appConfig.Clients.AutoDiscovery {
 			performAutoDiscoveryMigration(logger)
@@ -30,14 +30,14 @@ func performAutoDiscoveryMigration(logger *zap.SugaredLogger) {
 	fmt.Println()
 
 	// Get current client statuses to determine what to register
-	clientStatuses, err := GetClientStatus()
+	clientStatuses, err := GetClientStatus(logger)
 	if err != nil {
 		logger.Errorf("Error discovering clients during migration: %v", err)
 		return
 	}
 
 	// Get current config to see what's already registered
-	appConfig := config.GetConfig()
+	appConfig := config.GetConfig(logger)
 
 	var clientsToRegister []string
 	var alreadyRegistered = appConfig.Clients.RegisteredClients
@@ -69,7 +69,7 @@ func performAutoDiscoveryMigration(logger *zap.SugaredLogger) {
 
 		// Remove the auto-discovery flag during the same config update
 		c.Clients.AutoDiscovery = false
-	})
+	}, logger)
 
 	if err != nil {
 		logger.Errorf("Error updating config during migration: %v", err)

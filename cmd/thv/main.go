@@ -22,7 +22,7 @@ func main() {
 	// groups.CheckAndPerformDefaultGroupMigration()
 
 	// Skip update check for completion command or if we are running in kubernetes
-	if err := app.NewRootCmd(!app.IsCompletionCommand(os.Args) && !runtime.IsKubernetesRuntime(), logger).Execute(); err != nil {
+	if err := app.NewRootCmd(!app.IsCompletionCommand(os.Args) && !runtime.IsKubernetesRuntime()).Execute(); err != nil {
 		os.Exit(1)
 	}
 }

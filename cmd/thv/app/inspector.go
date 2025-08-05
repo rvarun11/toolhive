@@ -14,7 +14,6 @@ import (
 	"github.com/stacklok/toolhive/pkg/container/images"
 	"github.com/stacklok/toolhive/pkg/container/runtime"
 	"github.com/stacklok/toolhive/pkg/labels"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/permissions"
 	"github.com/stacklok/toolhive/pkg/runner"
 	"github.com/stacklok/toolhive/pkg/transport/types"
@@ -78,7 +77,7 @@ func waitForInspectorReady(ctx context.Context, port int, statusChan chan bool) 
 			case <-ctx.Done():
 				return
 			default:
-				logger.Log.Info("Waiting for MCP Inspector to be ready...")
+				logger.Info("Waiting for MCP Inspector to be ready...")
 				time.Sleep(3 * time.Second)
 			}
 		}
@@ -102,7 +101,7 @@ func inspectorCmdFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	imageManager := images.NewImageManager(ctx)
-	processedImage, err := runner.HandleProtocolScheme(ctx, imageManager, inspector.Image, "")
+	processedImage, err := runner.HandleProtocolScheme(ctx, imageManager, inspector.Image, "", logger)
 	if err != nil {
 		return fmt.Errorf("failed to handle protocol scheme: %v", err)
 	}
@@ -145,7 +144,7 @@ func inspectorCmdFunc(cmd *cobra.Command, args []string) error {
 	// Wait for workload to be running or context to be cancelled
 	select {
 	case <-statusChan:
-		logger.Log.Infof("Connected to MCP server: %s", serverName)
+		logger.Infof("Connected to MCP server: %s", serverName)
 
 		var suffix string
 		var transportTypeStr string
@@ -159,7 +158,7 @@ func inspectorCmdFunc(cmd *cobra.Command, args []string) error {
 		inspectorURL := fmt.Sprintf(
 			"http://localhost:%d?transport=%s&serverUrl=http://host.docker.internal:%d/%s",
 			inspectorUIPort, transportTypeStr, serverPort, suffix)
-		logger.Log.Infof("Inspector UI is now available at %s", inspectorURL)
+		logger.Infof("Inspector UI is now available at %s", inspectorURL)
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("context cancelled while waiting for workload to start")
@@ -168,7 +167,7 @@ func inspectorCmdFunc(cmd *cobra.Command, args []string) error {
 
 func getServerPortAndTransport(ctx context.Context, serverName string) (int, types.TransportType, error) {
 	// Instantiate the status manager and list all workloads.
-	manager, err := workloads.NewManager(ctx)
+	manager, err := workloads.NewManager(ctx, logger)
 	if err != nil {
 		return 0, types.TransportTypeSSE, fmt.Errorf("failed to create status manager: %v", err)
 	}

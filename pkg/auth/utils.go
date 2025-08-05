@@ -7,8 +7,7 @@ import (
 	"os/user"
 
 	"github.com/golang-jwt/jwt/v5"
-
-	"github.com/stacklok/toolhive/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // GetClaimsFromContext retrieves the claims from the request context.
@@ -27,9 +26,9 @@ func GetClaimsFromContext(ctx context.Context) (jwt.MapClaims, bool) {
 // GetAuthenticationMiddleware returns the appropriate authentication middleware based on the configuration.
 // If OIDC config is provided, it returns JWT middleware. Otherwise, it returns local user middleware.
 func GetAuthenticationMiddleware(ctx context.Context, oidcConfig *TokenValidatorConfig,
-	allowOpaqueTokens bool) (func(http.Handler) http.Handler, error) {
+	allowOpaqueTokens bool, logger *zap.SugaredLogger) (func(http.Handler) http.Handler, error) {
 	if oidcConfig != nil {
-		logger.Log.Info("OIDC validation enabled")
+		logger.Info("OIDC validation enabled")
 
 		// Create JWT validator
 		jwtValidator, err := NewTokenValidator(ctx, *oidcConfig, allowOpaqueTokens)
@@ -40,15 +39,15 @@ func GetAuthenticationMiddleware(ctx context.Context, oidcConfig *TokenValidator
 		return jwtValidator.Middleware, nil
 	}
 
-	logger.Log.Info("OIDC validation disabled, using local user authentication")
+	logger.Info("OIDC validation disabled, using local user authentication")
 
 	// Get current OS user
 	currentUser, err := user.Current()
 	if err != nil {
-		logger.Log.Warnf("Failed to get current user, using 'local' as default: %v", err)
+		logger.Warnf("Failed to get current user, using 'local' as default: %v", err)
 		return LocalUserMiddleware("local"), nil
 	}
 
-	logger.Log.Infof("Using local user authentication for user: %s", currentUser.Username)
+	logger.Infof("Using local user authentication for user: %s", currentUser.Username)
 	return LocalUserMiddleware(currentUser.Username), nil
 }

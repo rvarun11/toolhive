@@ -11,14 +11,13 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	containerdigest "github.com/opencontainers/go-digest"
 	"github.com/sigstore/sigstore-go/pkg/bundle"
-
-	"github.com/stacklok/toolhive/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // bundleFromAttestation retrieves the attestation bundles from the image reference. Note that the attestation
 // bundles are stored as OCI image references. The function uses the referrers API to get the attestation. GitHub supports
 // discovering the attestations via their API, but this is not supported here for now.
-func bundleFromAttestation(imageRef string, keychain authn.Keychain) ([]sigstoreBundle, error) {
+func bundleFromAttestation(imageRef string, keychain authn.Keychain, logger *zap.SugaredLogger) ([]sigstoreBundle, error) {
 	var bundles []sigstoreBundle
 
 	// Get the auth options
@@ -63,28 +62,28 @@ func bundleFromAttestation(imageRef string, keychain authn.Keychain) ([]sigstore
 		}
 		refImg, err := remote.Image(ref.Context().Digest(refDesc.Digest.String()), opts...)
 		if err != nil {
-			logger.Log.Debugf("error getting referrer image: %w", err)
+			logger.Debugf("error getting referrer image: %w", err)
 			continue
 		}
 		layers, err := refImg.Layers()
 		if err != nil {
-			logger.Log.Debugf("error getting referrer image: %w", err)
+			logger.Debugf("error getting referrer image: %w", err)
 			continue
 		}
 		layer0, err := layers[0].Uncompressed()
 		if err != nil {
-			logger.Log.Debugf("error getting referrer image: %w", err)
+			logger.Debugf("error getting referrer image: %w", err)
 			continue
 		}
 		bundleBytes, err := io.ReadAll(layer0)
 		if err != nil {
-			logger.Log.Debugf("error getting referrer image: %w", err)
+			logger.Debugf("error getting referrer image: %w", err)
 			continue
 		}
 		b := &bundle.Bundle{}
 		err = b.UnmarshalJSON(bundleBytes)
 		if err != nil {
-			logger.Log.Debugf("error unmarshalling bundle: %w", err)
+			logger.Debugf("error unmarshalling bundle: %w", err)
 			continue
 		}
 

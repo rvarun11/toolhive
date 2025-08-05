@@ -14,7 +14,6 @@ import (
 	"github.com/spf13/viper"
 
 	rt "github.com/stacklok/toolhive/pkg/container/runtime"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/workloads"
 )
 
@@ -47,12 +46,12 @@ Use --proxy to view the logs from the ToolHive proxy process instead.`,
 
 	err := viper.BindPFlag("follow", logsCommand.Flags().Lookup("follow"))
 	if err != nil {
-		logger.Log.Errorf("failed to bind flag: %v", err)
+		logger.Errorf("failed to bind flag: %v", err)
 	}
 
 	err = viper.BindPFlag("proxy", logsCommand.Flags().Lookup("proxy"))
 	if err != nil {
-		logger.Log.Errorf("failed to bind flag: %v", err)
+		logger.Errorf("failed to bind flag: %v", err)
 	}
 
 	// Add prune subcommand for better discoverability
@@ -82,7 +81,7 @@ func logsCmdFunc(cmd *cobra.Command, args []string) error {
 		return getProxyLogs(workloadName, follow)
 	}
 
-	manager, err := workloads.NewManager(ctx)
+	manager, err := workloads.NewManager(ctx, logger)
 	if err != nil {
 		return fmt.Errorf("failed to create workload manager: %v", err)
 	}
@@ -90,7 +89,7 @@ func logsCmdFunc(cmd *cobra.Command, args []string) error {
 	logs, err := manager.GetLogs(ctx, workloadName, follow)
 	if err != nil {
 		if errors.Is(err, rt.ErrWorkloadNotFound) {
-			logger.Log.Infof("workload %s not found", workloadName)
+			logger.Infof("workload %s not found", workloadName)
 			return nil
 		}
 		return fmt.Errorf("failed to get logs for workload %s: %v", workloadName, err)
@@ -119,7 +118,7 @@ func logsPruneCmdFunc(cmd *cobra.Command) error {
 	}
 
 	if len(logFiles) == 0 {
-		logger.Log.Info("No log files found")
+		logger.Info("No log files found")
 		return nil
 	}
 
@@ -136,7 +135,7 @@ func getLogsDirectory() (string, error) {
 	}
 
 	if _, err := os.Stat(logsDir); os.IsNotExist(err) {
-		logger.Log.Info("No logs directory found, nothing to prune")
+		logger.Info("No logs directory found, nothing to prune")
 		return "", nil
 	}
 
@@ -144,7 +143,7 @@ func getLogsDirectory() (string, error) {
 }
 
 func getManagedContainerNames(ctx context.Context) (map[string]bool, error) {
-	manager, err := workloads.NewManager(ctx)
+	manager, err := workloads.NewManager(ctx, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create status manager: %v", err)
 	}
@@ -188,10 +187,10 @@ func pruneOrphanedLogFiles(logFiles []string, managedNames map[string]bool) ([]s
 		if !managedNames[baseName] {
 			if err := os.Remove(logFile); err != nil {
 				errs = append(errs, fmt.Sprintf("failed to remove %s: %v", logFile, err))
-				logger.Log.Warnf("Failed to remove log file %s: %v", logFile, err)
+				logger.Warnf("Failed to remove log file %s: %v", logFile, err)
 			} else {
 				prunedFiles = append(prunedFiles, logFile)
-				logger.Log.Infof("Removed log file: %s", logFile)
+				logger.Infof("Removed log file: %s", logFile)
 			}
 		}
 	}
@@ -201,16 +200,16 @@ func pruneOrphanedLogFiles(logFiles []string, managedNames map[string]bool) ([]s
 
 func reportPruneResults(prunedFiles, errs []string) {
 	if len(prunedFiles) == 0 {
-		logger.Log.Info("No orphaned log files found to prune")
+		logger.Info("No orphaned log files found to prune")
 	} else {
-		logger.Log.Infof("Successfully pruned %d log file(s)", len(prunedFiles))
+		logger.Infof("Successfully pruned %d log file(s)", len(prunedFiles))
 		for _, file := range prunedFiles {
 			fmt.Printf("Removed: %s\n", file)
 		}
 	}
 
 	if len(errs) > 0 {
-		logger.Log.Warnf("Encountered %d error(s) during pruning:", len(errs))
+		logger.Warnf("Encountered %d error(s) during pruning:", len(errs))
 		for _, errMsg := range errs {
 			fmt.Fprintf(os.Stderr, "Error: %s\n", errMsg)
 		}
@@ -230,7 +229,7 @@ func getProxyLogs(workloadName string, follow bool) error {
 
 	// Check if the log file exists
 	if _, err := os.Stat(cleanLogFilePath); os.IsNotExist(err) {
-		logger.Log.Infof("proxy log not found for workload %s", workloadName)
+		logger.Infof("proxy log not found for workload %s", workloadName)
 		return nil
 	}
 

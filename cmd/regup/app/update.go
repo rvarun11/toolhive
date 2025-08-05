@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/stacklok/toolhive/pkg/container/verifier"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/registry"
 )
 
@@ -145,7 +144,7 @@ func selectOldestServers(reg *registry.Registry) ([]serverWithName, error) {
 	limit := count
 	if limit > len(servers) {
 		limit = len(servers)
-		logger.Log.Warnf("Requested count %d exceeds available servers, limiting to %d", count, len(servers))
+		logger.Warnf("Requested count %d exceeds available servers, limiting to %d", count, len(servers))
 	}
 
 	return servers[:limit], nil
@@ -185,7 +184,7 @@ func updateServers(servers []serverWithName, reg *registry.Registry) ([]string, 
 	failedServers := make([]string, 0)
 
 	for _, s := range servers {
-		logger.Log.Infof("Updating server: %s", s.name)
+		logger.Infof("Updating server: %s", s.name)
 
 		if err := updateServerInfo(s.name, s.server); err != nil {
 			var provenanceErr *ProvenanceVerificationError
@@ -212,7 +211,7 @@ func updateServers(servers []serverWithName, reg *registry.Registry) ([]string, 
 func saveResults(reg *registry.Registry, updatedServers []string, failedServers []string) error {
 	// If we're in dry run mode, don't save changes
 	if dryRun {
-		logger.Log.Info("Dry run completed, no changes made")
+		logger.Info("Dry run completed, no changes made")
 		return nil
 	}
 
@@ -226,9 +225,9 @@ func saveResults(reg *registry.Registry, updatedServers []string, failedServers 
 			return fmt.Errorf("failed to save registry: %w", err)
 		}
 
-		logger.Log.Info("Registry updated successfully")
+		logger.Info("Registry updated successfully")
 	} else {
-		logger.Log.Info("No servers were updated")
+		logger.Info("No servers were updated")
 	}
 
 	return nil
@@ -248,7 +247,7 @@ func updateServerInfo(name string, server *registry.ImageMetadata) error {
 
 	// Skip if no repository URL
 	if server.RepositoryURL == "" {
-		logger.Log.Warnf("ImageMetadata %s has no repository URL, skipping", name)
+		logger.Warnf("ImageMetadata %s has no repository URL, skipping", name)
 		return nil
 	}
 
@@ -271,13 +270,13 @@ func updateServerInfo(name string, server *registry.ImageMetadata) error {
 
 	// Update server metadata
 	if dryRun {
-		logger.Log.Infof("[DRY RUN] Would update %s: stars %d -> %d, pulls %d -> %d",
+		logger.Infof("[DRY RUN] Would update %s: stars %d -> %d, pulls %d -> %d",
 			name, server.Metadata.Stars, stars, server.Metadata.Pulls, pulls)
 		return nil
 	}
 
 	// Log the changes
-	logger.Log.Infof("Updating %s: stars %d -> %d, pulls %d -> %d",
+	logger.Infof("Updating %s: stars %d -> %d, pulls %d -> %d",
 		name, server.Metadata.Stars, stars, server.Metadata.Pulls, pulls)
 
 	// Update the metadata

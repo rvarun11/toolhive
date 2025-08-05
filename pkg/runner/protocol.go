@@ -9,6 +9,7 @@ import (
 	"time"
 
 	nameref "github.com/google/go-containerregistry/pkg/name"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/certs"
 	"github.com/stacklok/toolhive/pkg/container/images"
@@ -31,8 +32,9 @@ func HandleProtocolScheme(
 	imageManager images.ImageManager,
 	serverOrImage string,
 	caCertPath string,
+	logger *zap.SugaredLogger,
 ) (string, error) {
-	return BuildFromProtocolSchemeWithName(ctx, imageManager, serverOrImage, caCertPath, "")
+	return BuildFromProtocolSchemeWithName(ctx, imageManager, serverOrImage, caCertPath, "", logger)
 }
 
 // BuildFromProtocolSchemeWithName checks if the serverOrImage string contains a protocol scheme (uvx://, npx://, or go://)
@@ -45,6 +47,7 @@ func BuildFromProtocolSchemeWithName(
 	serverOrImage string,
 	caCertPath string,
 	imageName string,
+	logger *zap.SugaredLogger,
 ) (string, error) {
 	transportType, packageName, err := parseProtocolScheme(serverOrImage)
 	if err != nil {
@@ -56,7 +59,7 @@ func BuildFromProtocolSchemeWithName(
 		return "", err
 	}
 
-	return buildImageFromTemplateWithName(ctx, imageManager, transportType, packageName, templateData, imageName)
+	return buildImageFromTemplateWithName(ctx, imageManager, transportType, packageName, templateData, imageName, logger)
 }
 
 // parseProtocolScheme extracts the transport type and package name from the protocol scheme.
@@ -268,6 +271,7 @@ func buildImageFromTemplateWithName(
 	packageName string,
 	templateData templates.TemplateData,
 	imageName string,
+	logger *zap.SugaredLogger,
 ) (string, error) {
 
 	// Get the Dockerfile content
@@ -311,8 +315,8 @@ func buildImageFromTemplateWithName(
 	}
 
 	// Log the build process
-	logger.Log.Debugf("Building Docker image for %s package: %s", transportType, packageName)
-	logger.Log.Debugf("Using Dockerfile:\n%s", dockerfileContent)
+	logger.Debugf("Building Docker image for %s package: %s", transportType, packageName)
+	logger.Debugf("Using Dockerfile:\n%s", dockerfileContent)
 
 	// Build the Docker image
 	logger.Infof("Building Docker image for %s package: %s", transportType, packageName)

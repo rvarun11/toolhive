@@ -25,6 +25,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
 
 	v1 "github.com/stacklok/toolhive/pkg/api/v1"
 	"github.com/stacklok/toolhive/pkg/auth"
@@ -75,9 +76,9 @@ func setupUnixSocket(address string) (net.Listener, error) {
 	return listener, nil
 }
 
-func cleanupUnixSocket(address string) {
+func cleanupUnixSocket(address string, logger *zap.SugaredLogger) {
 	if err := os.Remove(address); err != nil && !os.IsNotExist(err) {
-		logger.Log.Warnf("failed to remove socket file: %v", err)
+		logger.Warnf("failed to remove socket file: %v", err)
 	}
 }
 
@@ -143,6 +144,9 @@ func Serve(
 	enableDocs bool,
 	oidcConfig *auth.TokenValidatorConfig,
 ) error {
+
+	logger := logger.NewLogger().Named("server")
+
 	r := chi.NewRouter()
 	r.Use(
 		middleware.RequestID,
@@ -155,7 +159,7 @@ func Serve(
 	r.Use(updateCheckMiddleware())
 
 	// Add authentication middleware
-	authMiddleware, err := auth.GetAuthenticationMiddleware(ctx, oidcConfig, false)
+	authMiddleware, err := auth.GetAuthenticationMiddleware(ctx, oidcConfig, false, logger)
 	if err != nil {
 		return fmt.Errorf("failed to create authentication middleware: %v", err)
 	}
@@ -168,20 +172,20 @@ func Serve(
 	}
 
 	// Create registry provider
-	registryProvider, err := registry.GetDefaultProvider()
+	registryProvider, err := registry.GetDefaultProvider(logger)
 	if err != nil {
 		return fmt.Errorf("failed to create registry provider: %v", err)
 	}
 
-	clientManager, err := client.NewManager(ctx)
+	clientManager, err := client.NewManager(ctx, logger)
 	if err != nil {
 		return fmt.Errorf("failed to create client manager: %v", err)
 	}
 
-	workloadManager := workloads.NewManagerFromRuntime(containerRuntime)
+	workloadManager := workloads.NewManagerFromRuntime(containerRuntime, logger)
 
 	// Create group manager
-	groupManager, err := groups.NewManager()
+	groupManager, err := groups.NewManager(logger)
 	if err != nil {
 		return fmt.Errorf("failed to create group manager: %v", err)
 	}
@@ -189,12 +193,12 @@ func Serve(
 	routers := map[string]http.Handler{
 		"/health":               v1.HealthcheckRouter(containerRuntime),
 		"/api/v1beta/version":   v1.VersionRouter(),
-		"/api/v1beta/workloads": v1.WorkloadRouter(workloadManager, containerRuntime, groupManager, debugMode),
-		"/api/v1beta/registry":  v1.RegistryRouter(registryProvider),
-		"/api/v1beta/discovery": v1.DiscoveryRouter(),
-		"/api/v1beta/clients":   v1.ClientRouter(clientManager),
-		"/api/v1beta/secrets":   v1.SecretsRouter(),
-		"/api/v1beta/groups":    v1.GroupsRouter(groupManager),
+		"/api/v1beta/workloads": v1.WorkloadRouter(workloadManager, containerRuntime, groupManager, debugMode, logger),
+		"/api/v1beta/registry":  v1.RegistryRouter(registryProvider, logger),
+		"/api/v1beta/discovery": v1.DiscoveryRouter(logger),
+		"/api/v1beta/clients":   v1.ClientRouter(clientManager, logger),
+		"/api/v1beta/secrets":   v1.SecretsRouter(logger),
+		"/api/v1beta/groups":    v1.GroupsRouter(groupManager, logger),
 	}
 
 	// Only mount docs router if enabled
@@ -228,27 +232,27 @@ func Serve(
 		return err
 	}
 
-	logger.Log.Infof("starting %s server at %s", addrType, address)
+	logger.Infof("starting %s server at %s", addrType, address)
 
 	// Start server.
 	go func() {
 		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Log.Panicf("server stopped with error: %v", err)
+			logger.Panicf("server stopped with error: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
 	if err := srv.Shutdown(ctx); err != nil {
 		if isUnixSocket {
-			cleanupUnixSocket(address)
+			cleanupUnixSocket(address, logger)
 		}
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
 	if isUnixSocket {
-		cleanupUnixSocket(address)
+		cleanupUnixSocket(address, logger)
 	}
 
-	logger.Log.Infof("%s server stopped", addrType)
+	logger.Infof("%s server stopped", addrType)
 	return nil
 }

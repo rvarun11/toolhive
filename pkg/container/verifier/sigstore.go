@@ -20,8 +20,7 @@ import (
 	protocommon "github.com/sigstore/protobuf-specs/gen/pb-go/common/v1"
 	protorekor "github.com/sigstore/protobuf-specs/gen/pb-go/rekor/v1"
 	"github.com/sigstore/sigstore-go/pkg/bundle"
-
-	"github.com/stacklok/toolhive/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type sigstoreBundle struct {
@@ -31,7 +30,7 @@ type sigstoreBundle struct {
 }
 
 // bundleFromSigstoreSignedImage returns a bundle from a Sigstore signed image
-func bundleFromSigstoreSignedImage(imageRef string, keychain authn.Keychain) ([]sigstoreBundle, error) {
+func bundleFromSigstoreSignedImage(imageRef string, keychain authn.Keychain, logger *zap.SugaredLogger) ([]sigstoreBundle, error) {
 	// Get the signature manifest from the OCI image reference
 	signatureRef, err := getSignatureReferenceFromOCIImage(imageRef, keychain)
 	if err != nil {
@@ -50,14 +49,14 @@ func bundleFromSigstoreSignedImage(imageRef string, keychain authn.Keychain) ([]
 		// Build the verification material for the bundle
 		verificationMaterial, err := getBundleVerificationMaterial(layer)
 		if err != nil {
-			logger.Log.Error("error getting bundle verification material")
+			logger.Error("error getting bundle verification material")
 			continue
 		}
 
 		// Build the message signature for the bundle
 		msgSignature, err := getBundleMsgSignature(layer)
 		if err != nil {
-			logger.Log.Error("error getting bundle message signature")
+			logger.Error("error getting bundle message signature")
 			continue
 		}
 
@@ -69,14 +68,14 @@ func bundleFromSigstoreSignedImage(imageRef string, keychain authn.Keychain) ([]
 		}
 		bun, err := bundle.NewBundle(&pbb)
 		if err != nil {
-			logger.Log.Error("error creating protobuf bundle")
+			logger.Error("error creating protobuf bundle")
 			continue
 		}
 
 		// Collect the digest of the simple signing layer (this is what is signed)
 		digestBytes, err := hex.DecodeString(layer.Digest.Hex)
 		if err != nil {
-			logger.Log.Error("error decoding the simplesigning layer digest")
+			logger.Error("error decoding the simplesigning layer digest")
 			continue
 		}
 

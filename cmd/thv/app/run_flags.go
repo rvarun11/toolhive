@@ -195,7 +195,7 @@ func BuildRunnerConfig(
 	}
 
 	// Get OTEL flag values with config fallbacks
-	config := cfg.GetConfig()
+	config := cfg.GetConfig(logger)
 	finalOtelEndpoint, finalOtelSamplingRate, finalOtelEnvironmentVariables := getTelemetryFromFlags(nil, config,
 		runConfig.OtelEndpoint, runConfig.OtelSamplingRate, runConfig.OtelEnvironmentVariables)
 
@@ -226,7 +226,7 @@ func BuildRunnerConfig(
 		// Take the MCP server we were supplied and either fetch the image, or
 		// build it from a protocol scheme. If the server URI refers to an image
 		// in our trusted registry, we will also fetch the image metadata.
-		imageURL, imageMetadata, err = retriever.GetMCPServer(ctx, serverOrImage, runConfig.CACertPath, runConfig.VerifyImage)
+		imageURL, imageMetadata, err = retriever.GetMCPServer(ctx, serverOrImage, runConfig.CACertPath, runConfig.VerifyImage, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find or create the MCP server %s: %v", serverOrImage, err)
 		}

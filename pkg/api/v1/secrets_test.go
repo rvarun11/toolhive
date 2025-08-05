@@ -19,7 +19,8 @@ import (
 
 func TestSecretsRouter(t *testing.T) {
 	t.Parallel()
-	router := SecretsRouter()
+	logger := logger.NewLogger()
+	router := SecretsRouter(logger)
 	assert.NotNil(t, router)
 }
 
@@ -445,9 +446,11 @@ func TestErrorHandling(t *testing.T) {
 func TestRouterIntegration(t *testing.T) {
 	t.Parallel()
 
+	logger := logger.NewLogger()
+
 	t.Run("router setup test", func(t *testing.T) {
 		t.Parallel()
-		router := SecretsRouter()
+		router := SecretsRouter(logger)
 
 		// Test POST / endpoint
 		setupReq := setupSecretsRequest{

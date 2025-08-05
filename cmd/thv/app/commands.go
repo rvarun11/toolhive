@@ -4,9 +4,7 @@ package app
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/updates"
 )
 
@@ -23,16 +21,13 @@ container-based isolation for running MCP servers.`,
 	Run: func(cmd *cobra.Command, _ []string) {
 		// If no subcommand is provided, print help
 		if err := cmd.Help(); err != nil {
-			logger.Log.Errorf("Error displaying help: %v", err)
+			logger.Errorf("Error displaying help: %v", err)
 		}
-	},
-	PersistentPreRun: func(_ *cobra.Command, _ []string) {
-		logger.Initialize()
 	},
 }
 
 // NewRootCmd creates a new root command for the ToolHive CLI.
-func NewRootCmd(enableUpdates bool, logger *zap.SugaredLogger) *cobra.Command {
+func NewRootCmd(enableUpdates bool) *cobra.Command {
 	// Add persistent flags
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
 	err := viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
@@ -61,7 +56,7 @@ func NewRootCmd(enableUpdates bool, logger *zap.SugaredLogger) *cobra.Command {
 	rootCmd.SilenceUsage = true
 
 	if enableUpdates {
-		checkForUpdates(logger)
+		checkForUpdates()
 	}
 
 	return rootCmd
@@ -75,7 +70,7 @@ func IsCompletionCommand(args []string) bool {
 	return false
 }
 
-func checkForUpdates(logger *zap.SugaredLogger) {
+func checkForUpdates() {
 	if updates.ShouldSkipUpdateChecks() {
 		return
 	}

@@ -123,7 +123,7 @@ func setCACertCmdFunc(_ *cobra.Command, args []string) error {
 	// Update the configuration
 	err = config.UpdateConfig(func(c *config.Config) {
 		c.CACertificatePath = certPath
-	})
+	}, logger)
 	if err != nil {
 		return fmt.Errorf("failed to update configuration: %w", err)
 	}
@@ -133,7 +133,7 @@ func setCACertCmdFunc(_ *cobra.Command, args []string) error {
 }
 
 func getCACertCmdFunc(_ *cobra.Command, _ []string) error {
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(logger)
 
 	if cfg.CACertificatePath == "" {
 		fmt.Println("No CA certificate is currently configured.")
@@ -151,7 +151,7 @@ func getCACertCmdFunc(_ *cobra.Command, _ []string) error {
 }
 
 func unsetCACertCmdFunc(_ *cobra.Command, _ []string) error {
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(logger)
 
 	if cfg.CACertificatePath == "" {
 		fmt.Println("No CA certificate is currently configured.")
@@ -161,7 +161,7 @@ func unsetCACertCmdFunc(_ *cobra.Command, _ []string) error {
 	// Update the configuration
 	err := config.UpdateConfig(func(c *config.Config) {
 		c.CACertificatePath = ""
-	})
+	}, logger)
 	if err != nil {
 		return fmt.Errorf("failed to update configuration: %w", err)
 	}
@@ -191,6 +191,7 @@ func detectRegistryType(input string) (registryType string, cleanPath string) {
 }
 
 func setRegistryCmdFunc(_ *cobra.Command, args []string) error {
+
 	input := args[0]
 	registryType, cleanPath := detectRegistryType(input)
 
@@ -226,7 +227,7 @@ func setRegistryURL(registryURL string) error {
 		c.RegistryUrl = registryURL
 		c.LocalRegistryPath = "" // Clear local path when setting URL
 		c.AllowPrivateRegistryIp = allowPrivateRegistryIp
-	})
+	}, logger)
 	if err != nil {
 		return fmt.Errorf("failed to update configuration: %w", err)
 	}
@@ -272,7 +273,7 @@ func setRegistryFile(registryPath string) error {
 	err = config.UpdateConfig(func(c *config.Config) {
 		c.LocalRegistryPath = registryPath
 		c.RegistryUrl = "" // Clear URL when setting local path
-	})
+	}, logger)
 	if err != nil {
 		return fmt.Errorf("failed to update configuration: %w", err)
 	}
@@ -282,7 +283,7 @@ func setRegistryFile(registryPath string) error {
 }
 
 func getRegistryCmdFunc(_ *cobra.Command, _ []string) error {
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(logger)
 
 	if cfg.RegistryUrl != "" {
 		fmt.Printf("Current registry: %s (remote URL)\n", cfg.RegistryUrl)
@@ -304,7 +305,7 @@ func getRegistryCmdFunc(_ *cobra.Command, _ []string) error {
 }
 
 func unsetRegistryCmdFunc(_ *cobra.Command, _ []string) error {
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(logger)
 
 	if cfg.RegistryUrl == "" && cfg.LocalRegistryPath == "" {
 		fmt.Println("No custom registry is currently configured.")
@@ -315,7 +316,7 @@ func unsetRegistryCmdFunc(_ *cobra.Command, _ []string) error {
 	err := config.UpdateConfig(func(c *config.Config) {
 		c.RegistryUrl = ""
 		c.LocalRegistryPath = ""
-	})
+	}, logger)
 	if err != nil {
 		return fmt.Errorf("failed to update configuration: %w", err)
 	}

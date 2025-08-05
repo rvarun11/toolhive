@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/config"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/secrets"
 )
 
@@ -26,9 +25,9 @@ type SecretsRoutes struct {
 }
 
 // SecretsRouter creates a new router for the secrets API.
-func SecretsRouter() http.Handler {
+func SecretsRouter(logger *zap.SugaredLogger) http.Handler {
 	routes := SecretsRoutes{
-		logger: logger.NewLogger(),
+		logger: logger,
 	}
 
 	r := chi.NewRouter()
@@ -92,7 +91,7 @@ func (s *SecretsRoutes) setupSecretsProvider(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Check current secrets provider configuration for appropriate messaging
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(s.logger)
 	isReconfiguration := false
 	isInitialSetup := !cfg.Secrets.SetupCompleted
 	if cfg.Secrets.SetupCompleted {
@@ -165,7 +164,7 @@ func (s *SecretsRoutes) setupSecretsProvider(w http.ResponseWriter, r *http.Requ
 	err := config.UpdateConfig(func(c *config.Config) {
 		c.Secrets.ProviderType = string(providerType)
 		c.Secrets.SetupCompleted = true
-	})
+	}, s.logger)
 	if err != nil {
 		s.logger.Errorf("Failed to update configuration: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to update configuration: %v", err), http.StatusInternalServerError)
@@ -204,7 +203,7 @@ func (s *SecretsRoutes) setupSecretsProvider(w http.ResponseWriter, r *http.Requ
 //	@Failure		500	{string}	string	"Internal Server Error"
 //	@Router			/api/v1beta/secrets/default [get]
 func (s *SecretsRoutes) getSecretsProvider(w http.ResponseWriter, _ *http.Request) {
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(s.logger)
 
 	// Check if secrets provider is setup
 	if !cfg.Secrets.SetupCompleted {
@@ -505,8 +504,8 @@ func (s *SecretsRoutes) deleteSecret(w http.ResponseWriter, r *http.Request) {
 }
 
 // getSecretsManager is a helper function to get the secrets manager
-func (*SecretsRoutes) getSecretsManager() (secrets.Provider, error) {
-	cfg := config.GetConfig()
+func (s *SecretsRoutes) getSecretsManager() (secrets.Provider, error) {
+	cfg := config.GetConfig(s.logger)
 
 	// Check if secrets setup has been completed
 	if !cfg.Secrets.SetupCompleted {

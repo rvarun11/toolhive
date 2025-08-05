@@ -10,7 +10,6 @@ import (
 
 	"github.com/stacklok/toolhive/pkg/errors"
 	"github.com/stacklok/toolhive/pkg/groups"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/validation"
 	"github.com/stacklok/toolhive/pkg/workloads"
 )
@@ -22,10 +21,10 @@ type GroupsRoutes struct {
 }
 
 // GroupsRouter creates a new GroupsRoutes instance.
-func GroupsRouter(groupManager groups.Manager) http.Handler {
+func GroupsRouter(groupManager groups.Manager, logger *zap.SugaredLogger) http.Handler {
 	routes := GroupsRoutes{
 		groupManager: groupManager,
-		logger:       logger.NewLogger(),
+		logger:       logger,
 	}
 
 	r := chi.NewRouter()
@@ -213,7 +212,7 @@ func (s *GroupsRoutes) deleteGroup(w http.ResponseWriter, r *http.Request) {
 
 	// Handle workloads if any exist
 	if len(groupWorkloads) > 0 {
-		workloadManager, err := workloads.NewManager(ctx)
+		workloadManager, err := workloads.NewManager(ctx, s.logger)
 		if err != nil {
 			s.logger.Errorf("Failed to create workload manager: %v", err)
 			http.Error(w, "Failed to create workload manager", http.StatusInternalServerError)

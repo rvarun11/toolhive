@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/client"
-	"github.com/stacklok/toolhive/pkg/logger"
 )
 
 // ClientRoutes defines the routes for the client API.
@@ -20,10 +19,11 @@ type ClientRoutes struct {
 // ClientRouter creates a new router for the client API.
 func ClientRouter(
 	manager client.Manager,
+	logger *zap.SugaredLogger,
 ) http.Handler {
 	routes := ClientRoutes{
 		manager: manager,
-		logger:  logger.NewLogger(),
+		logger:  logger,
 	}
 
 	r := chi.NewRouter()

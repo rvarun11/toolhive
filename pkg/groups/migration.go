@@ -19,7 +19,7 @@ var migrationOnce sync.Once
 // This is called once at application startup
 func CheckAndPerformDefaultGroupMigration(logger *zap.SugaredLogger) {
 	migrationOnce.Do(func() {
-		appConfig := config.GetConfig()
+		appConfig := config.GetConfig(logger)
 
 		// Check if default group migration has already been performed
 		if appConfig.DefaultGroupMigration {
@@ -36,7 +36,7 @@ func performDefaultGroupMigration(logger *zap.SugaredLogger) {
 	fmt.Println()
 
 	// Create group manager and ensure default group exists
-	groupManager, err := NewManager()
+	groupManager, err := NewManager(logger)
 	if err != nil {
 		logger.Errorf("Failed to create group manager: %v", err)
 		return
@@ -90,7 +90,7 @@ func performDefaultGroupMigration(logger *zap.SugaredLogger) {
 	}
 
 	// Migrate client configurations from global config to default group
-	if err := migrateClientConfigs(context.Background(), groupManager); err != nil {
+	if err := migrateClientConfigs(context.Background(), groupManager, logger); err != nil {
 		logger.Errorf("Failed to migrate client configurations: %v", err)
 		return
 	}
@@ -98,7 +98,7 @@ func performDefaultGroupMigration(logger *zap.SugaredLogger) {
 	// Mark default group migration as completed
 	err = config.UpdateConfig(func(c *config.Config) {
 		c.DefaultGroupMigration = true
-	})
+	}, logger)
 
 	if err != nil {
 		logger.Errorf("Error updating config during migration: %v", err)
@@ -107,8 +107,8 @@ func performDefaultGroupMigration(logger *zap.SugaredLogger) {
 }
 
 // migrateClientConfigs migrates client configurations from global config to default group
-func migrateClientConfigs(ctx context.Context, groupManager Manager) error {
-	appConfig := config.GetConfig()
+func migrateClientConfigs(ctx context.Context, groupManager Manager, logger *zap.SugaredLogger) error {
+	appConfig := config.GetConfig(logger)
 
 	// If there are no registered clients, nothing to migrate
 	if len(appConfig.Clients.RegisteredClients) == 0 {
@@ -151,7 +151,7 @@ func migrateClientConfigs(ctx context.Context, groupManager Manager) error {
 		// Clear the global client configurations after successful migration
 		err = config.UpdateConfig(func(c *config.Config) {
 			c.Clients.RegisteredClients = []string{}
-		})
+		}, logger)
 		if err != nil {
 			logger.Warnf("Failed to clear global client configurations after migration: %v", err)
 		} else {

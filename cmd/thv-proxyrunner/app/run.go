@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/stacklok/toolhive/pkg/container"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/registry"
 	"github.com/stacklok/toolhive/pkg/runner"
 	"github.com/stacklok/toolhive/pkg/transport"
@@ -107,7 +106,7 @@ func init() {
 	)
 	// This is used for the K8s operator which wraps the run command, but shouldn't be visible to users.
 	if err := runCmd.Flags().MarkHidden("k8s-pod-patch"); err != nil {
-		logger.Log.Warnf("Error hiding flag: %v", err)
+		logger.Warnf("Error hiding flag: %v", err)
 	}
 	runCmd.Flags().StringVar(
 		&runThvCABundle,
@@ -205,7 +204,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	cmdArgs := parseCommandArguments(os.Args)
 
 	// Print the processed command arguments for debugging
-	logger.Log.Debugf("Processed cmdArgs: %v", cmdArgs)
+	logger.Debugf("Processed cmdArgs: %v", cmdArgs)
 
 	// Get debug mode flag
 	debugMode, _ := cmd.Flags().GetBool("debug")
@@ -257,7 +256,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create RunConfig: %v", err)
 	}
 
-	workloadManager := workloads.NewManagerFromRuntime(rt)
+	workloadManager := workloads.NewManagerFromRuntime(rt, logger)
 	return workloadManager.RunWorkload(ctx, runConfig)
 }
 

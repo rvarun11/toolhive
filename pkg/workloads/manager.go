@@ -24,7 +24,6 @@ import (
 	"github.com/stacklok/toolhive/pkg/core"
 	"github.com/stacklok/toolhive/pkg/groups"
 	"github.com/stacklok/toolhive/pkg/labels"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/process"
 	"github.com/stacklok/toolhive/pkg/runner"
 	"github.com/stacklok/toolhive/pkg/secrets"
@@ -87,7 +86,7 @@ const (
 var workloadNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 // NewManager creates a new container manager instance.
-func NewManager(ctx context.Context) (Manager, error) {
+func NewManager(ctx context.Context, logger *zap.SugaredLogger) (Manager, error) {
 	runtime, err := ct.NewFactory().Create(ctx)
 	if err != nil {
 		return nil, err
@@ -96,16 +95,16 @@ func NewManager(ctx context.Context) (Manager, error) {
 	return &defaultManager{
 		runtime:  runtime,
 		statuses: NewStatusManagerFromRuntime(runtime),
-		logger:   logger.NewLogger(),
+		logger:   logger,
 	}, nil
 }
 
 // NewManagerFromRuntime creates a new container manager instance from an existing runtime.
-func NewManagerFromRuntime(runtime rt.Runtime) Manager {
+func NewManagerFromRuntime(runtime rt.Runtime, logger *zap.SugaredLogger) Manager {
 	return &defaultManager{
 		runtime:  runtime,
 		statuses: NewStatusManagerFromRuntime(runtime),
-		logger:   logger.NewLogger(),
+		logger:   logger,
 	}
 }
 
@@ -177,10 +176,10 @@ func (d *defaultManager) RunWorkload(ctx context.Context, runConfig *runner.RunC
 	return err
 }
 
-func validateSecretParameters(ctx context.Context, runConfig *runner.RunConfig) error {
+func validateSecretParameters(ctx context.Context, runConfig *runner.RunConfig, logger *zap.SugaredLogger) error {
 	// If there are run secrets, validate them
 	if len(runConfig.Secrets) > 0 {
-		cfg := config.GetConfig()
+		cfg := config.GetConfig(logger)
 
 		providerType, err := cfg.Secrets.GetProviderType()
 		if err != nil {
@@ -203,7 +202,7 @@ func validateSecretParameters(ctx context.Context, runConfig *runner.RunConfig) 
 //nolint:gocyclo // This function is complex but manageable
 func (d *defaultManager) RunWorkloadDetached(ctx context.Context, runConfig *runner.RunConfig) error {
 	// before running, validate the parameters for the workload
-	err := validateSecretParameters(ctx, runConfig)
+	err := validateSecretParameters(ctx, runConfig, d.logger)
 	if err != nil {
 		return fmt.Errorf("failed to validate workload parameters: %w", err)
 	}
@@ -396,7 +395,7 @@ func (d *defaultManager) RunWorkloadDetached(ctx context.Context, runConfig *run
 	// NOTE: This breaks the abstraction slightly since this is only relevant for the CLI, but there
 	// are checks inside `GetSecretsPassword` to ensure this does not get called in a detached process.
 	// This will be addressed in a future re-think of the secrets manager interface.
-	if needSecretsPassword(runConfig.Secrets) {
+	if needSecretsPassword(runConfig.Secrets, d.logger) {
 		password, err := secrets.GetSecretsPassword("")
 		if err != nil {
 			return fmt.Errorf("failed to get secrets password: %v", err)
@@ -520,7 +519,7 @@ func (d *defaultManager) DeleteWorkloads(ctx context.Context, names []string) (*
 
 				d.logger.Infof("Container %s removed", name)
 
-				if shouldRemoveClientConfig() {
+				if shouldRemoveClientConfig(d.logger) {
 					if err := removeClientConfigurations(name, d.logger); err != nil {
 						d.logger.Warnf("Warning: Failed to remove client configurations: %v", err)
 					} else {
@@ -623,8 +622,8 @@ func (d *defaultManager) RestartWorkloads(ctx context.Context, names []string) (
 	return group, nil
 }
 
-func shouldRemoveClientConfig() bool {
-	c := config.GetConfig()
+func shouldRemoveClientConfig(logger *zap.SugaredLogger) bool {
+	c := config.GetConfig(logger)
 	return len(c.Clients.RegisteredClients) > 0
 }
 
@@ -670,14 +669,14 @@ func (d *defaultManager) loadRunnerFromState(ctx context.Context, baseName strin
 	return r, nil
 }
 
-func needSecretsPassword(secretOptions []string) bool {
+func needSecretsPassword(secretOptions []string, logger *zap.SugaredLogger) bool {
 	// If the user did not ask for any secrets, then don't attempt to instantiate
 	// the secrets manager.
 	if len(secretOptions) == 0 {
 		return false
 	}
 	// Ignore err - if the flag is not set, it's not needed.
-	providerType, _ := config.GetConfig().Secrets.GetProviderType()
+	providerType, _ := config.GetConfig(logger).Secrets.GetProviderType()
 	return providerType == secrets.EncryptedType
 }
 
@@ -721,7 +720,7 @@ func (d *defaultManager) stopWorkloads(ctx context.Context, workloads []*rt.Cont
 				return fmt.Errorf("failed to stop container: %w", err)
 			}
 
-			if shouldRemoveClientConfig() {
+			if shouldRemoveClientConfig(d.logger) {
 				if err := removeClientConfigurations(name, d.logger); err != nil {
 					d.logger.Warnf("Warning: Failed to remove client configurations: %v", err)
 				} else {

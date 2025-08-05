@@ -366,7 +366,8 @@ func FindClientConfig(clientType MCPClient) (*ConfigFile, error) {
 // the running MCPs for the given client type.
 func ensureClientConfigWithRunningMCPs(clientType MCPClient) (*ConfigFile, error) {
 	ctx := context.Background()
-	mgrIface, mgrErr := NewManager(ctx)
+	logger := logger.NewLogger()
+	mgrIface, mgrErr := NewManager(ctx, logger)
 	if mgrErr != nil {
 		return nil, fmt.Errorf("unable to create manager for %s: %w", clientType, mgrErr)
 	}
@@ -388,7 +389,7 @@ func ensureClientConfigWithRunningMCPs(clientType MCPClient) (*ConfigFile, error
 // FindRegisteredClientConfigs finds all registered client configs and creates them if they don't exist
 // and ensures they are populated with the running MCPs.
 func FindRegisteredClientConfigs(logger *zap.SugaredLogger) ([]ConfigFile, error) {
-	clientStatuses, err := GetClientStatus()
+	clientStatuses, err := GetClientStatus(logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client status: %w", err)
 	}

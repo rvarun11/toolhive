@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	nameref "github.com/google/go-containerregistry/pkg/name"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/config"
 	"github.com/stacklok/toolhive/pkg/container/images"
@@ -38,6 +39,7 @@ func GetMCPServer(
 	serverOrImage string,
 	rawCACertPath string,
 	verificationType string,
+	logger *zap.SugaredLogger,
 ) (string, *registry.ImageMetadata, error) {
 	var imageMetadata *registry.ImageMetadata
 	var imageToUse string
@@ -45,29 +47,29 @@ func GetMCPServer(
 	imageManager := images.NewImageManager(ctx)
 	// Check if the serverOrImage is a protocol scheme, e.g., uvx://, npx://, or go://
 	if runner.IsImageProtocolScheme(serverOrImage) {
-		logger.Log.Debugf("Detected protocol scheme: %s", serverOrImage)
+		logger.Debugf("Detected protocol scheme: %s", serverOrImage)
 		// Process the protocol scheme and build the image
-		caCertPath := resolveCACertPath(rawCACertPath)
-		generatedImage, err := runner.HandleProtocolScheme(ctx, imageManager, serverOrImage, caCertPath)
+		caCertPath := resolveCACertPath(rawCACertPath, logger)
+		generatedImage, err := runner.HandleProtocolScheme(ctx, imageManager, serverOrImage, caCertPath, logger)
 		if err != nil {
 			return "", nil, errors.Join(ErrBadProtocolScheme, err)
 		}
 		// Update the image in the runConfig with the generated image
-		logger.Log.Debugf("Using built image: %s instead of %s", generatedImage, serverOrImage)
+		logger.Debugf("Using built image: %s instead of %s", generatedImage, serverOrImage)
 		imageToUse = generatedImage
 	} else {
-		logger.Log.Debugf("No protocol scheme detected, using image: %s", serverOrImage)
+		logger.Debugf("No protocol scheme detected, using image: %s", serverOrImage)
 		// Try to find the imageMetadata in the registry
-		provider, err := registry.GetDefaultProvider()
+		provider, err := registry.GetDefaultProvider(logger)
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to get registry provider: %v", err)
 		}
 		imageMetadata, err = provider.GetServer(serverOrImage)
 		if err != nil {
-			logger.Log.Debugf("ImageMetadata '%s' not found in registry: %v", serverOrImage, err)
+			logger.Debugf("ImageMetadata '%s' not found in registry: %v", serverOrImage, err)
 			imageToUse = serverOrImage
 		} else {
-			logger.Log.Debugf("Found imageMetadata '%s' in registry: %v", serverOrImage, imageMetadata)
+			logger.Debugf("Found imageMetadata '%s' in registry: %v", serverOrImage, imageMetadata)
 			imageToUse = imageMetadata.Image
 		}
 	}
@@ -140,16 +142,16 @@ func pullImage(ctx context.Context, image string, imageManager images.ImageManag
 }
 
 // resolveCACertPath determines the CA certificate path to use, prioritizing command-line flag over configuration
-func resolveCACertPath(flagValue string) string {
+func resolveCACertPath(flagValue string, logger *zap.SugaredLogger) string {
 	// If command-line flag is provided, use it (highest priority)
 	if flagValue != "" {
 		return flagValue
 	}
 
 	// Otherwise, check configuration
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(logger)
 	if cfg.CACertificatePath != "" {
-		logger.Log.Debugf("Using configured CA certificate: %s", cfg.CACertificatePath)
+		logger.Debugf("Using configured CA certificate: %s", cfg.CACertificatePath)
 		return cfg.CACertificatePath
 	}
 

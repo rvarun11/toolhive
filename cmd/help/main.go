@@ -10,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
-	"github.com/stacklok/toolhive/pkg/logger"
 
 	cli "github.com/stacklok/toolhive/cmd/thv/app"
 )
@@ -46,7 +45,6 @@ func linkHandler(filename string) string {
 
 func main() {
 	var dir string
-	logger := logger.NewLogger()
 
 	root := &cobra.Command{
 		Use:          "gendoc",
@@ -54,7 +52,7 @@ func main() {
 		SilenceUsage: true,
 		Args:         cobra.NoArgs,
 		RunE: func(*cobra.Command, []string) error {
-			return doc.GenMarkdownTreeCustom(cli.NewRootCmd(false, logger), dir, filePrepender, linkHandler)
+			return doc.GenMarkdownTreeCustom(cli.NewRootCmd(false), dir, filePrepender, linkHandler)
 		},
 	}
 	root.Flags().StringVarP(&dir, "dir", "d", "doc", "Path to directory in which to generate docs")

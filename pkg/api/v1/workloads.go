@@ -14,7 +14,6 @@ import (
 	"github.com/stacklok/toolhive/pkg/core"
 	thverrors "github.com/stacklok/toolhive/pkg/errors"
 	"github.com/stacklok/toolhive/pkg/groups"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/permissions"
 	"github.com/stacklok/toolhive/pkg/runner"
 	"github.com/stacklok/toolhive/pkg/runner/retriever"
@@ -46,13 +45,14 @@ func WorkloadRouter(
 	containerRuntime runtime.Runtime,
 	groupManager groups.Manager,
 	debugMode bool,
+	logger *zap.SugaredLogger,
 ) http.Handler {
 	routes := WorkloadRoutes{
 		workloadManager:  workloadManager,
 		containerRuntime: containerRuntime,
 		debugMode:        debugMode,
 		groupManager:     groupManager,
-		logger:           logger.NewLogger(),
+		logger:           logger,
 	}
 
 	r := chi.NewRouter()
@@ -99,7 +99,7 @@ func (s *WorkloadRoutes) listWorkloads(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid group name: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		workloadList, err = workloads.FilterByGroup(ctx, workloadList, groupFilter)
+		workloadList, err = workloads.FilterByGroup(ctx, workloadList, groupFilter, s.logger)
 		if err != nil {
 			if thverrors.IsGroupNotFound(err) {
 				http.Error(w, "Group not found", http.StatusNotFound)
@@ -266,6 +266,7 @@ func (s *WorkloadRoutes) createWorkload(w http.ResponseWriter, r *http.Request) 
 		req.Image,
 		"", // We do not let the user specify a CA cert path here.
 		retriever.VerifyImageWarn,
+		s.logger,
 	)
 	if err != nil {
 		if errors.Is(err, retriever.ErrImageNotFound) {

@@ -78,7 +78,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	if r.Config.OIDCConfig != nil && r.Config.OIDCConfig.AllowOpaqueTokens {
 		allowOpaqueTokens = r.Config.OIDCConfig.AllowOpaqueTokens
 	}
-	authMiddleware, err := auth.GetAuthenticationMiddleware(ctx, r.Config.OIDCConfig, allowOpaqueTokens)
+	authMiddleware, err := auth.GetAuthenticationMiddleware(ctx, r.Config.OIDCConfig, allowOpaqueTokens, r.logger)
 	if err != nil {
 		return fmt.Errorf("failed to create authentication middleware: %v", err)
 	}
@@ -162,7 +162,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	// NOTE: This MUST happen after we save the run config to avoid storing
 	// the secrets in the state store.
 	if len(r.Config.Secrets) > 0 {
-		cfg := config.GetConfig()
+		cfg := config.GetConfig(r.logger)
 
 		providerType, err := cfg.Secrets.GetProviderType()
 		if err != nil {

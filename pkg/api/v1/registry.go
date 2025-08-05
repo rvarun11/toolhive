@@ -7,7 +7,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/registry"
 )
 
@@ -23,10 +22,10 @@ type RegistryRoutes struct {
 }
 
 // RegistryRouter creates a new router for the registry API.
-func RegistryRouter(provider registry.Provider) http.Handler {
+func RegistryRouter(provider registry.Provider, logger *zap.SugaredLogger) http.Handler {
 	routes := RegistryRoutes{
 		provider: provider,
-		logger:   logger.NewLogger(),
+		logger:   logger,
 	}
 
 	r := chi.NewRouter()

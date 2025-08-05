@@ -90,7 +90,7 @@ func (s *Sigstore) GetVerificationResults(
 	imageRef string,
 ) ([]*verify.VerificationResult, error) {
 	// Construct the bundle(s) for the image reference
-	bundles, err := getSigstoreBundles(imageRef, s.keychain)
+	bundles, err := getSigstoreBundles(imageRef, s.keychain, s.logger)
 	if err != nil && !errors.Is(err, ErrProvenanceNotFoundOrIncomplete) {
 		// We got some other unexpected error prior to querying for the signature/attestation
 		return nil, err

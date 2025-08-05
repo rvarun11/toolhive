@@ -11,7 +11,6 @@ import (
 	ct "github.com/stacklok/toolhive/pkg/container"
 	rt "github.com/stacklok/toolhive/pkg/container/runtime"
 	"github.com/stacklok/toolhive/pkg/labels"
-	log "github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/transport"
 )
 
@@ -36,7 +35,7 @@ type defaultManager struct {
 }
 
 // NewManager creates a new client manager instance.
-func NewManager(ctx context.Context) (Manager, error) {
+func NewManager(ctx context.Context, logger *zap.SugaredLogger) (Manager, error) {
 	runtime, err := ct.NewFactory().Create(ctx)
 	if err != nil {
 		return nil, err
@@ -44,13 +43,13 @@ func NewManager(ctx context.Context) (Manager, error) {
 
 	return &defaultManager{
 		runtime: runtime,
-		logger:  log.NewLogger(),
+		logger:  logger,
 	}, nil
 }
 
-func (*defaultManager) ListClients() ([]Client, error) {
+func (m *defaultManager) ListClients() ([]Client, error) {
 	clients := []Client{}
-	appConfig := config.GetConfig()
+	appConfig := config.GetConfig(m.logger)
 
 	for _, clientName := range appConfig.Clients.RegisteredClients {
 		clients = append(clients, Client{Name: MCPClient(clientName)})
@@ -73,7 +72,7 @@ func (m *defaultManager) RegisterClients(ctx context.Context, clients []Client) 
 
 			// Add the client to the registered clients list
 			c.Clients.RegisteredClients = append(c.Clients.RegisteredClients, string(client.Name))
-		})
+		}, m.logger)
 		if err != nil {
 			return fmt.Errorf("failed to update configuration for client %s: %w", client.Name, err)
 		}
@@ -176,7 +175,7 @@ func (m *defaultManager) UnregisterClients(ctx context.Context, clients []Client
 				}
 			}
 			m.logger.Warnf("Client %s was not found in registered clients list", client.Name)
-		})
+		}, m.logger)
 		if err != nil {
 			return fmt.Errorf("failed to update configuration for client %s: %w", client.Name, err)
 		}

@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	thverrors "github.com/stacklok/toolhive/pkg/errors"
-	"github.com/stacklok/toolhive/pkg/logger"
 	"github.com/stacklok/toolhive/pkg/runner"
 	"github.com/stacklok/toolhive/pkg/state"
 )
@@ -28,7 +27,7 @@ type manager struct {
 }
 
 // NewManager creates a new group manager
-func NewManager() (Manager, error) {
+func NewManager(logger *zap.SugaredLogger) (Manager, error) {
 	store, err := state.NewGroupConfigStore("toolhive")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create group state store: %w", err)
@@ -41,7 +40,7 @@ func NewManager() (Manager, error) {
 	return &manager{
 		groupStore:     store,
 		runconfigStore: runConfigStore,
-		logger:         logger.NewLogger(),
+		logger:         logger,
 	}, nil
 }
 

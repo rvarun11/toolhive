@@ -274,10 +274,11 @@ func TestEnsurePathExists(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		logger := logger.NewLogger()
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := ensurePathExists(tt.content, tt.path)
+			result := ensurePathExists(tt.content, tt.path, logger)
 
 			assert.DeepEqual(t, tt.expectedResult, result)
 		})

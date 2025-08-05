@@ -95,7 +95,7 @@ func init() {
 }
 
 func clientStatusCmdFunc(_ *cobra.Command, _ []string) error {
-	clientStatuses, err := client.GetClientStatus()
+	clientStatuses, err := client.GetClientStatus(logger)
 	if err != nil {
 		return fmt.Errorf("failed to get client status: %w", err)
 	}
@@ -103,7 +103,8 @@ func clientStatusCmdFunc(_ *cobra.Command, _ []string) error {
 }
 
 func clientSetupCmdFunc(cmd *cobra.Command, _ []string) error {
-	clientStatuses, err := client.GetClientStatus()
+	clientStatuses, err := client.GetClientStatus(logger)
+
 	if err != nil {
 		return fmt.Errorf("failed to get client status: %w", err)
 	}
@@ -115,6 +116,7 @@ func clientSetupCmdFunc(cmd *cobra.Command, _ []string) error {
 	selected, confirmed, err := ui.RunClientSetup(availableClients)
 	if err != nil {
 		return fmt.Errorf("error running interactive setup: %w", err)
+
 	}
 	if !confirmed {
 		fmt.Println("Setup cancelled. No clients registered.")
@@ -124,6 +126,7 @@ func clientSetupCmdFunc(cmd *cobra.Command, _ []string) error {
 		fmt.Println("No clients selected for registration.")
 		return nil
 	}
+
 	return registerSelectedClients(cmd, selected)
 }
 
@@ -142,7 +145,7 @@ func getAvailableClients(statuses []client.MCPClientStatus) []client.MCPClientSt
 func registerSelectedClients(cmd *cobra.Command, clientsToRegister []client.MCPClientStatus) error {
 	ctx := cmd.Context()
 
-	manager, err := client.NewManager(ctx)
+	manager, err := client.NewManager(ctx, logger)
 	if err != nil {
 		return fmt.Errorf("failed to create client manager: %w", err)
 	}
@@ -177,7 +180,7 @@ func clientRegisterCmdFunc(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 
-	manager, err := client.NewManager(ctx)
+	manager, err := client.NewManager(ctx, logger)
 	if err != nil {
 		return fmt.Errorf("failed to create client manager: %w", err)
 	}
@@ -209,7 +212,7 @@ func clientRemoveCmdFunc(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 
-	manager, err := client.NewManager(ctx)
+	manager, err := client.NewManager(ctx, logger)
 	if err != nil {
 		return fmt.Errorf("failed to create client manager: %w", err)
 	}
@@ -225,7 +228,7 @@ func clientRemoveCmdFunc(cmd *cobra.Command, args []string) error {
 }
 
 func listRegisteredClientsCmdFunc(_ *cobra.Command, _ []string) error {
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(logger)
 	if len(cfg.Clients.RegisteredClients) == 0 {
 		fmt.Println("No clients are currently registered.")
 		return nil

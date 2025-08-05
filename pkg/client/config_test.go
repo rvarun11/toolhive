@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/stacklok/toolhive/pkg/config"
 	"github.com/stacklok/toolhive/pkg/logger"
@@ -74,7 +75,7 @@ func createMockClientConfigs() []mcpClientConfig {
 
 // MockConfig creates a temporary config file with the provided configuration.
 // It returns a cleanup function that should be deferred.
-func MockConfig(t *testing.T, cfg *config.Config) func() {
+func MockConfig(t *testing.T, cfg *config.Config, logger *zap.SugaredLogger) func() {
 	t.Helper()
 
 	// Create a temporary directory for the test
@@ -92,7 +93,7 @@ func MockConfig(t *testing.T, cfg *config.Config) func() {
 
 	// Write the config file if one is provided
 	if cfg != nil {
-		err = config.UpdateConfig(func(c *config.Config) { *c = *cfg })
+		err = config.UpdateConfig(func(c *config.Config) { *c = *cfg }, logger)
 		require.NoError(t, err)
 	}
 
@@ -174,7 +175,7 @@ func TestFindClientConfigs(t *testing.T) { //nolint:paralleltest // Uses environ
 			},
 		}
 
-		cleanup := MockConfig(t, testConfig)
+		cleanup := MockConfig(t, testConfig, logger)
 		defer cleanup()
 
 		// Find client configs - this should NOT fail due to the invalid JSON
@@ -283,7 +284,7 @@ func TestSuccessfulClientConfigOperations(t *testing.T) {
 			},
 		}
 
-		cleanup := MockConfig(t, testConfig)
+		cleanup := MockConfig(t, testConfig, logger)
 		defer cleanup()
 
 		configs, err := FindRegisteredClientConfigs(logger)

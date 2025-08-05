@@ -4,9 +4,12 @@ package app
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 
-	"github.com/stacklok/toolhive/pkg/logger"
+	log "github.com/stacklok/toolhive/pkg/logger"
 )
+
+var logger *zap.SugaredLogger = log.NewLogger()
 
 var rootCmd = &cobra.Command{
 	Use:               "thv-proxyrunner",
@@ -17,11 +20,8 @@ It is written in Go and has extensive test coverage—including input validation
 	Run: func(cmd *cobra.Command, _ []string) {
 		// If no subcommand is provided, print help
 		if err := cmd.Help(); err != nil {
-			logger.Log.Errorf("Error displaying help: %v", err)
+			logger.Errorf("Error displaying help: %v", err)
 		}
-	},
-	PersistentPreRun: func(_ *cobra.Command, _ []string) {
-		logger.Initialize()
 	},
 }
 
@@ -31,7 +31,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
 	err := viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
 	if err != nil {
-		logger.Log.Errorf("Error binding debug flag: %v", err)
+		logger.Errorf("Error binding debug flag: %v", err)
 	}
 
 	// Add subcommands

@@ -16,10 +16,13 @@ import (
 	"github.com/stacklok/toolhive/pkg/errors"
 	"github.com/stacklok/toolhive/pkg/groups"
 	"github.com/stacklok/toolhive/pkg/groups/mocks"
+	"github.com/stacklok/toolhive/pkg/logger"
 )
 
 func TestGroupsRouter(t *testing.T) {
 	t.Parallel()
+
+	logger := logger.NewLogger()
 
 	tests := []struct {
 		name           string
@@ -215,7 +218,7 @@ func TestGroupsRouter(t *testing.T) {
 			}
 
 			// Create router
-			router := GroupsRouter(mockManager)
+			router := GroupsRouter(mockManager, logger)
 
 			// Create request
 			var req *http.Request
@@ -262,13 +265,15 @@ func TestGroupsRouter(t *testing.T) {
 func TestGroupsRouter_Integration(t *testing.T) {
 	t.Parallel()
 
+	logger := logger.NewLogger()
+
 	// Test with real group manager (integration test)
-	groupManager, err := groups.NewManager()
+	groupManager, err := groups.NewManager(logger)
 	if err != nil {
 		t.Skip("Skipping integration test: failed to create group manager")
 	}
 
-	router := GroupsRouter(groupManager)
+	router := GroupsRouter(groupManager, logger)
 
 	// Test creating a group
 	t.Run("create and list group", func(t *testing.T) {

@@ -36,7 +36,7 @@ func TestClientRegisterCmd(t *testing.T) { //nolint:paralleltest // Uses environ
 	err := registerClientViaCLI(cmd, "vscode")
 	assert.NoError(t, err)
 
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(logger)
 	assert.Contains(t, cfg.Clients.RegisteredClients, "vscode", "Client should be registered")
 }
 
@@ -47,7 +47,7 @@ func TestClientRemoveCmd(t *testing.T) { //nolint:paralleltest // Uses environme
 	// Pre-populate config with a registered client
 	err := config.UpdateConfig(func(c *config.Config) {
 		c.Clients.RegisteredClients = []string{"vscode"}
-	})
+	}, logger)
 	assert.NoError(t, err)
 
 	cmd := rootCmd
@@ -55,7 +55,7 @@ func TestClientRemoveCmd(t *testing.T) { //nolint:paralleltest // Uses environme
 	err = removeClientViaCLI(cmd, "vscode")
 	assert.NoError(t, err)
 
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(logger)
 	assert.NotContains(t, cfg.Clients.RegisteredClients, "vscode", "Client should be removed")
 }
 
@@ -89,7 +89,7 @@ func TestListRegisteredClientsCmd_Sorting(t *testing.T) { //nolint:paralleltest 
 	testClients := []string{"vscode", "cursor", "roo-code", "cline", "claude-code"}
 	err := config.UpdateConfig(func(c *config.Config) {
 		c.Clients.RegisteredClients = testClients
-	})
+	}, logger)
 	assert.NoError(t, err)
 
 	// Temporarily redirect stdout to capture the output

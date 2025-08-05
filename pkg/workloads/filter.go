@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"github.com/stacklok/toolhive/pkg/core"
 	"github.com/stacklok/toolhive/pkg/errors"
 	"github.com/stacklok/toolhive/pkg/groups"
@@ -11,10 +13,10 @@ import (
 
 // FilterByGroup filters workloads to only include those in the specified group
 func FilterByGroup(
-	ctx context.Context, workloadList []core.Workload, groupName string,
+	ctx context.Context, workloadList []core.Workload, groupName string, logger *zap.SugaredLogger,
 ) ([]core.Workload, error) {
 	// Create group manager
-	groupManager, err := groups.NewManager()
+	groupManager, err := groups.NewManager(logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create group manager: %v", err)
 	}
